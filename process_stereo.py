@@ -35,7 +35,8 @@ import subprocess
 #############
 
 def stereo_single_pair(data_dir, correl_dir, date1, date2):
-    subprocess.call('/home/florian/ASP-SAR/run_stereo.sh {} {} {} {}'.format(data_dir, correl_dir, date1, date2), shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT, env=os.environ)
+    cur_dir = os.path.dirname(__file__)
+    subprocess.call('{}/run_stereo.sh {} {} {} {}'.format(cur_dir, data_dir, correl_dir, date1, date2), shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT, env=os.environ)
     
 
 def stereo_pair_list(data_dir, correl_dir, pair_list):
@@ -47,7 +48,7 @@ def stereo_pair_list(data_dir, correl_dir, pair_list):
     
     # if pair already exists - skip 
     for index, rows in pair_df.iterrows():
-        date1, date2 = rows['Master'], rows['Slave']
+        date1, date2 = str(int(rows['Master'])), str(int(rows['Slave']))
         if(os.path.isdir(os.path.join(correl_dir, '{}_{}'.format(date1, date2)))):
             continue
         else:
