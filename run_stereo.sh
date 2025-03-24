@@ -13,8 +13,8 @@ PAIR=$DATE1"_"$DATE2
 # load asp_parameters.txt in DATA_DIR (DATA_DIR = WORK_DIR)
 . $DATA_DIR"/asp_parameters.txt"
 
-IMG_PRE=$DATA_DIR"/GEOTIFF/S1A_85_"$3"_A.VV.mod_log.tif"
-IMG_POST=$DATA_DIR"/GEOTIFF/S1A_85_"$4"_A.VV.mod_log.tif"
+IMG_PRE=$DATA_DIR"/GEOTIFF/"$3".VV.mod_log.tif"
+IMG_POST=$DATA_DIR"/GEOTIFF/"$4".VV.mod_log.tif"
 
 cd $CORREL_DIR
 

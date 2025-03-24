@@ -41,9 +41,10 @@ def get_dates_and_Bp(pair_table):
    
     # skip first two rows when reading data because of structure of table_...txt
     # needs to be adjusted if different input table file is used
-    pair_df = pd.read_csv(pair_table, sep='\t', header=None, skiprows=2)
+    # pair_df = pd.read_csv(pair_table, sep='\t', header=None, skiprows=2)
     #print(pair_df)
-    dates1, dates2, bp = pair_df.iloc[:,0].to_list(), pair_df.iloc[:,1].to_list(), pair_df.iloc[:,2].to_list()
+    # dates1, dates2, bp = pair_df.iloc[:,0].to_list(), pair_df.iloc[:,1].to_list(), pair_df.iloc[:,2].to_list()
+    dates1, dates2, bp = np.loadtxt(pair_table, unpack=True, skiprows=2, usecols = (0, 1, 2))
     return (dates1, dates2, bp) 
 
 # calculate the Bp for each date using the table_0....txt(Master) and date_list(prepare_result_export) file 
@@ -78,8 +79,12 @@ def get_perp_baseline_each_date(pair_table, date_list_file):
 def generate_list_pair(process_orient_dir, pair_table):
     
     # get only master and slave dates - keep as pairs
-    pairs= pd.read_csv(pair_table, sep='\t').iloc[:,0:2]
-    pairs.to_csv(os.path.join(process_orient_dir, 'list_pair'), sep='\t', header=False, index=False)
+    # pairs= pd.read_csv(pair_table, sep='\t', dtype=str).iloc[:,0:2]
+    # pairs.to_csv(os.path.join(process_orient_dir, 'list_pair'), sep='\t', header=False, index=False)
+
+    pairs = np.loadtxt(pair_table, usecols=(0,1), skiprows=2, dtype=str)
+    print(pairs)
+    np.savetxt(os.path.join(process_orient_dir, 'list_pair'), pairs, delimiter='\t', fmt='%s') 
     
 # for first try, run with Bp=0 for each date -> add calculation later with get_perp_baseline_each_date
 # generate list_dates file and saves it in /NSBAS_PROCESS/H|V

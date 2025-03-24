@@ -6,13 +6,14 @@ convert_geotiff.py
 Converts the ALL2GIF results to GeoTIFF. It takes the log() of the input image.
 An additional file is created (AMPLI_STACK_SIGMA_3.tif) with mean, 1/sigma and sigma as bands.
 
-Usage: prepare_correl_dir.py --data=<path> [--f]
+Usage: prepare_correl_dir.py --data=<path> [--f] [--s1]
 prepare_correl_dir.py -h | --help
 
 Options:
 -h | --help         Show this screen
 --data              Path to directory with linked data
 --f                 Force recomputation of all files
+--s1                Handle AMSTer names for Sentinel 1
 
 """
 ##########
@@ -153,6 +154,7 @@ input_path = arguments['--data']
 all_file_df = pd.DataFrame(columns=['file', 'ncol', 'nrow'])
 
 force = arguments['--f']
+s1 = arguments['--s1']
 
 geotiff_dir = os.path.join(input_path, 'GEOTIFF')
 
@@ -210,3 +212,18 @@ for f in os.listdir(input_path):
 # process AMPLI_STACK_SIGMA each time to always include all images
 print('Start AMPLI_MEAN and SIGMA calculation')
 get_mean_sigma_amplitude(os.path.join(input_path, 'GEOTIFF'), IMG_DIM, corrupt_file_df)    
+
+if s1:
+    # from utils > rename_geotiff_S1.py
+    geotiff_dir = os.path.join(input_path, 'GEOTIFF')
+    geotiff_original_dir = os.path.join(input_path, 'GEOTIFF_ORIGINAL')
+
+    os.rename(geotiff_dir, geotiff_original_dir)
+
+    Path(geotiff_dir).mkdir(parents=True, exist_ok=True)
+
+    # run through GEOTIFF_ORIGINAL - link all the data to GEOTIFF in correct format
+    for f in os.listdir(geotiff_original_dir):
+        if('mod_log.tif' in f):
+            print(f.split('_')[2])
+            os.symlink(os.path.join(geotiff_original_dir, f), os.path.join(geotiff_dir, '{}.VV.mod_log.tif'.format(f.split('_')[2])))
