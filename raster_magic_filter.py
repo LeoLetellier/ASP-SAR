@@ -5,7 +5,7 @@ raster_magic_filter.py
 --------------
 Compute a median filter on a one band raster, weighted by the standard deviation with other images.
 
-Usage: raster_median_filter.py --infile=<infile>  [--kernel=<kernel>] [--std-threshold=<std-threshold>] [--weighted]
+Usage: raster_median_filter.py --infile=<infile>  [--kernel=<kernel>] [--std-threshold=<std-threshold>] [--weighted] [--lee]
 raster_median_filter.py -h | --help
 
 Options:
@@ -14,6 +14,7 @@ Options:
 --kernel                Size of the filter kernel (can be one nb "3" or array like "2 3")
 --std-threshold         Threshold on the std value
 --weighted              Whether to used weighting or only threshold
+--lee                   Use Lee filter instead. Override --weighted if set.
 """
 
 
@@ -22,6 +23,20 @@ from osgeo import gdal
 from scipy.signal import medfilt2d
 import os
 import docopt
+from scipy.ndimage.filters import uniform_filter
+from scipy.ndimage.measurements import variance
+
+
+def lee_filter(img, size):
+    img_mean = uniform_filter(img, (size, size))
+    img_sqr_mean = uniform_filter(img**2, (size, size))
+    img_variance = img_sqr_mean - img_mean**2
+
+    overall_variance = variance(img)
+
+    img_weights = img_variance / (img_variance + overall_variance)
+    img_output = img_mean + img_weights * (img - img_mean)
+    return img_output
 
 
 class GeoTiff:
@@ -125,6 +140,7 @@ if __name__ == "__main__":
     std_threshold = float(arguments["--std-threshold"])
 
     do_weighted = arguments["--weighted"]
+    do_lee = arguments["--lee"]
 
     imgs = []
     for i in files:
@@ -138,8 +154,9 @@ if __name__ == "__main__":
     std_gt.data = std
     std_gt.save(os.path.splitext(files[0])[0] + "_std.tif")
 
-
-    if do_weighted:
+    if do_lee:
+        res = lee_filter(im, 3)
+    elif do_weighted:
         res = weighted_median_filter(im, std, std_threshold, kernel)
     else:
         res = threshold_median_filter(im, std, std_threshold, kernel)
