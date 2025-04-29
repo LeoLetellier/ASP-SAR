@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 am_geocode.py
@@ -49,18 +49,36 @@ def resolve_infile(infile):
     return infile
 
 
-def link_to_amster(amster, files):
+def move_to_amster(amster, files):
     dst = os.path.join(amster, "i12", "InSARProducts")
     links = []
     for f in files:
         target = os.path.join(dst, "REGEOC." + os.path.basename(f))
         if os.path.exists(target):
             print(">> WARNING: skipped, target already exists:", target)
+            links.append(target)
         else:
-            os.symlink(f, target)
+            cmd = "cp {} {}".format(f, target)
+            sh(cmd)
+            # os.symlink(f, target)
             links.append(target)
             print("Created link from {} to {}".format(f, target))
     return links
+
+
+def translate_to_envi(links):
+    n_links = []
+    for k in links:
+        cmd = "gdal_translate -of ENVI {} {} ; rm {}".format(
+            k,
+            os.path.splitext(k)[0] + ".bil",
+            k
+        )
+        print(cmd)
+        sh(cmd)
+        n_links.append(os.path.splitext(k)[0] + ".bil")
+        n_links.append(os.path.splitext(k)[0] + ".hdr")
+    return n_links
 
 
 def launch_geocode(amster, param):
@@ -75,7 +93,9 @@ def get_back_geocoded(amster, outdir, infile):
     else:
         os.mkdir(outdir)
     
-    geocoded_envi = [glob.glob(os.path.join(amster, "i12", "GeoProjection", "REGEOC." + os.path.basename(f)) + ".*.bil")[0] for f in infile]
+    print(infile)
+    print("i12/GeoProjection/REGEOC.*.bil")
+    geocoded_envi = [glob.glob(os.path.join(amster, "i12", "GeoProjection", "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.bil")[0] for f in infile]
     geocoded_hdr = [os.path.splitext(f)[0] + ".hdr" for f in geocoded_envi]
     print("Retrieve geocoded results:")
     print(geocoded_envi)
@@ -98,8 +118,8 @@ def clean_amster(amster, infile, links):
         os.remove(l)
     dir = os.path.join(amster, "i12", "GeoProjection")
     for f in infile:
-        ras = glob.glob(os.path.join(dir, "REGEOC." + os.path.basename(f)) + ".*.ras")[0]
-        sh = glob.glob(os.path.join(dir, "REGEOC." + os.path.basename(f)) + ".*.ras.sh")[0]
+        ras = glob.glob(os.path.join(dir, "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.ras")[0]
+        sh = glob.glob(os.path.join(dir, "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.ras.sh")[0]
         print("Removing:", ras)
         print("Removing:", sh)
         os.remove(ras)
@@ -117,7 +137,11 @@ if __name__ == "__main__":
     infile = resolve_infile(infile)
     print("Processing files:", infile)
 
-    links = link_to_amster(amster, infile)
+    links = move_to_amster(amster, infile)
+    print(links)
+
+    links = translate_to_envi(links)
+    print("Tranlated tifs to ENVI")
 
     launch_geocode(amster, param)
 
