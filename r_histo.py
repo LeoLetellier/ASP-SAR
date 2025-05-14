@@ -14,6 +14,7 @@ Options:
 
 
 import numpy as np
+from scipy.stats import describe
 from osgeo import gdal
 import matplotlib.pyplot as plt
 import sys
@@ -44,7 +45,11 @@ if __name__ == "__main__":
     for infile in args:
         print("histo line for:", infile)
         array = input_to_array(infile)
-        print("min: ", str(np.nanmin(array)), " ; max: ", str(np.nanmax(array)))
+        nb_values = array.shape[0] * array.shape[1]
+        nb_nans = np.count_nonzero(~np.isnan(array))
+        # print("min: ", str(np.nanmin(array)), " ; max: ", str(np.nanmax(array)))
+        print("Valid pixels: {} ({}/{})".format(nb_nans/nb_values, nb_nans, nb_values))
+        print(describe(array, axis=None, nan_policy="omit"))
         r_histo(array, name=infile)
 
     plt.xlabel('Pixel Value')

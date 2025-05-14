@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-r_extremum_removal.py
+r_ps_select.py
 --------------
-Compute stack statistics on multiple images for each pixel.
+Select the persistent scatterer pixels base on the D_A (std/mean) properties.
 
-Usage: r_extremum_removal.py --infile=<infile> --outfile=<outfile> [--value=<value>]
-r_extremum_removal.py -h | --help
+Usage: r_ps_select.py --infile=<infile> --outfile=<outfile> --da=<da> [--threshold=<threshold>]
+r_ps_select.py -h | --help
 
 Options:
 -h | --help             Show this screen
 --infile                Path to the file with one image per line
 --outfile               Path to the output file
---value                 Value to replace extremum with
+--da                    D_A file
+--threshold             D_A threshold
 """
 
 
@@ -22,13 +23,11 @@ import os
 import docopt
 
 
-def r_extremum_removal(ampl, value=None):
-    """ 
+def da_removal(ampl, da, threshold=None):
+    """ remove px with da sup threshold
     """
-    value = value if value else np.nan
-    threshold = 3.1 * np.std(ampl)
-    mean = np.nanmean(ampl)
-    ampl[np.abs(ampl - mean) > threshold] = value
+    threshold = threshold if threshold else 0.25
+    ampl[da > threshold] = np.nan
     return ampl
 
 
@@ -53,7 +52,7 @@ def output_to_raster(array, path, template):
     band = ds.GetRasterBand(1)
     ndv = band.GetNoDataValue()
     if ndv != np.nan:
-        array[array==np.nan] = ndv
+        array[array == np.nan] = ndv
     band.WriteArray(array)
     ds.FlushCache()
     print("Saved:", path)
@@ -64,10 +63,10 @@ if __name__ == "__main__":
 
     infile = args["--infile"]
     outfile = args["--outfile"]
-    value = args["--value"]
-    if value:
-        value = float(value)
+    da = args["--da"]
+    thresh = args["--threshold"]
 
     ampl = input_to_array(infile)
-    ampl = r_extremum_removal(ampl, value)
+    da = input_to_array(da)
+    ampl = da_removal(ampl, da, float(thresh))
     output_to_raster(ampl, outfile, infile)
