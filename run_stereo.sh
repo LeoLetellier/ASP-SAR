@@ -27,7 +27,7 @@ stereo="--corr-kernel $CORR_KERNEL --cost-mode $COST_MODE --stereo-algorithm $ST
 denoising="--filter-mode $FILTER_MODE --rm-quantile-multiple $RM_QUANT_MULT"
 filtering="--median-filter-size $MED_FILTER_SIZE --texture-smooth-size $TEXT_SMOOTH_SIZE --texture-smooth-scale $TEXT_SMOOTH_SCALE"
 
-parallel_stereo $session $IMG_PRE $IMG_POST $BLACK_LEFT $BLACK_RIGHT $OUTPUT_DIR $stereo $denoising $filtering
+parallel_stereo $session $IMG_PRE $IMG_POST $BLACK_LEFT $BLACK_RIGHT $OUTPUT_DIR $stereo $denoising $filtering --stop-point 5
 
 exit
 

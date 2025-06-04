@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 raster_magic_filter.py
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     
     kernel = [int(k) for k in arguments["--kernel"].split(" ")] if arguments["--kernel"] else 3
 
-    std_threshold = float(arguments["--std-threshold"])
+    std_threshold = arguments["--std-threshold"]
 
     do_weighted = arguments["--weighted"]
     do_lee = arguments["--lee"]
@@ -157,9 +157,9 @@ if __name__ == "__main__":
     if do_lee:
         res = lee_filter(im, 3)
     elif do_weighted:
-        res = weighted_median_filter(im, std, std_threshold, kernel)
+        res = weighted_median_filter(im, std, float(std_threshold), kernel)
     else:
-        res = threshold_median_filter(im, std, std_threshold, kernel)
+        res = threshold_median_filter(im, std, float(std_threshold), kernel)
     
     filtered = imgs[0].replicate_empty()
     filtered.data = res
