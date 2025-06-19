@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-mask_result_export_cc.py
+mask_correl_export_cc.py
 -------------
 Mask the adjusted correlation results in EXPORT/ADJUSTED based on their corresponding correlation coefficient map in EXPORT/CC and save them in MASKED/CC
 
-Usage: mask_result_export_cc.py [--f] --data=<path>
-mask_result_export_cc.py -h | --help
+Usage: mask_correl_export_cc.py [--f] --data=<path>
+mask_correl_export_cc.py -h | --help
 
 Options:
 -h | --help         Show this screen
@@ -71,6 +71,7 @@ arguments = docopt.docopt(__doc__)
 
 # work_dir is data_dir from before, because everything is in one directory
 export_dir = arguments['--data']
+export_dir = os.path.join(export_dir, "EXPORT")
 
 adj_dir = os.path.join(export_dir, 'ADJUSTED')
 cc_dir = os.path.join(export_dir, 'CC')

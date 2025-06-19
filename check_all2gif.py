@@ -49,17 +49,19 @@ def check_for_empty_files(all2gif_dir):
 # MAIN #
 ########
 
-arguments = docopt.docopt(__doc__)
+if __name__ == "__main__":
 
-all2gif_dir = arguments["--check"]
+    arguments = docopt.docopt(__doc__)
 
-empty_files = check_for_empty_files(all2gif_dir)
+    all2gif_dir = arguments["--check"]
 
-if(not empty_files):
-    print('Everything should be fine, can continue with process_stereo')
-else:
-    print('Check following directories; adjust LLRGCO & LLAZCO and process ALL2GIF again')
-    for d in empty_files:
-        print(os.path.join(all2gif_dir, d))
+    empty_files = check_for_empty_files(all2gif_dir)
+
+    if(not empty_files):
+        print('Everything should be fine, can continue with process_stereo')
+    else:
+        print('Check following directories; adjust LLRGCO & LLAZCO and process ALL2GIF again')
+        for d in empty_files:
+            print(os.path.join(all2gif_dir, d))
         
 

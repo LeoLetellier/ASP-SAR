@@ -19,6 +19,7 @@ Options:
 ##########
 
 import os, sys
+import glob
 import numpy as np
 from osgeo import gdal
 import pandas as pd
@@ -187,8 +188,9 @@ nsbas_input_dir = os.path.join(work_dir, 'EXPORT', 'NSBAS')
 
 # TODO: check this part again - maybe give as parameter
 correl_dir = os.path.join(work_dir, 'CORREL')
-# get table file -> must be in format table_[...].txt
-pair_table = [os.path.join(correl_dir, f) for f in os.listdir(correl_dir) if os.path.isfile(os.path.join(work_dir, f)) and f.split('_')[0] == 'table'][0]
+# get table file -> must be th only table_[...].txt file
+pair_table = glob.glob(os.path.join(correl_dir, "table*"))[0]
+# pair_table = [os.path.join(correl_dir, f) for f in os.listdir(correl_dir) if os.path.isfile(os.path.join(work_dir, f)) and f.split('_')[0] == 'table'][0]
 date_list_file = os.path.join(nsbas_input_dir, 'dates_list.txt')
 
 

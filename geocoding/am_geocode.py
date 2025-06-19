@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 am_geocode.py
@@ -21,6 +21,8 @@ import sys
 import glob
 import docopt
 from subprocess import run, STDOUT
+
+from osgeo import gdal
 
 
 def sh(cmd: str, shell=True):
@@ -49,36 +51,47 @@ def resolve_infile(infile):
     return infile
 
 
+# def raster_to_amster(raster, target, band=1):
+#     ds = gdal.Open(raster)
+#     band = ds.GetRasterBand(band)
+#     data = band.ReadAsArray()
+#     data.flatten().astype('float32').tofile(target)
+
+
 def move_to_amster(amster, files):
     dst = os.path.join(amster, "i12", "InSARProducts")
     links = []
     for f in files:
         target = os.path.join(dst, "REGEOC." + os.path.basename(f))
+        target = os.path.splitext(target)[0] + ".bil"
         if os.path.exists(target):
             print(">> WARNING: skipped, target already exists:", target)
             links.append(target)
         else:
-            cmd = "cp {} {}".format(f, target)
+            cmd = "gdal_translate {} {} -of ENVI".format(f, target)
             sh(cmd)
-            # os.symlink(f, target)
             links.append(target)
-            print("Created link from {} to {}".format(f, target))
+            print("Made ENVI copy from {} to {}".format(f, target))
     return links
 
 
-def translate_to_envi(links):
-    n_links = []
-    for k in links:
-        cmd = "gdal_translate -of ENVI {} {} ; rm {}".format(
-            k,
-            os.path.splitext(k)[0] + ".bil",
-            k
-        )
-        print(cmd)
-        sh(cmd)
-        n_links.append(os.path.splitext(k)[0] + ".bil")
-        n_links.append(os.path.splitext(k)[0] + ".hdr")
-    return n_links
+def cube_to_amster(amster, file):
+    dst = os.path.join(amster, "i12", "InSARProducts")
+    links = []
+    ds = gdal.Open(file)
+    band_nb = ds.RasterCount
+    for b in range(1, band_nb + 1):
+        target = os.path.join(dst, "REGEOC.b" + str(b) + "_" + os.path.basename(file))
+        target = os.path.splitext(target)[0]
+        if os.path.exists(target):
+            print(">> WARNING: skipped, target already exists:", target)
+            links.append(target)
+        else:
+            cmd = "gdal_translate {} {} -of ENVI -b {}".format(f, target, b)
+            sh(cmd)
+            links.append(target)
+            print("Made ENVI copy from {} to {}".format(f, target))
+    return links
 
 
 def launch_geocode(amster, param):
@@ -93,8 +106,13 @@ def get_back_geocoded(amster, outdir, infile):
     else:
         os.mkdir(outdir)
     
-    print(infile)
-    print("i12/GeoProjection/REGEOC.*.bil")
+    if type(infile) is str:
+        print("infile is str")
+        infile = ["b{}_{}".format(b, os.path.splitext(os.path.basename(infile))[0]) for b in range(1, gdal.Open(infile).RasterCount + 1)]
+        print(infile)
+
+    print(os.path.join(amster, "i12", "GeoProjection", "REGEOC." + os.path.splitext(os.path.basename(f))[0]))
+
     geocoded_envi = [glob.glob(os.path.join(amster, "i12", "GeoProjection", "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.bil")[0] for f in infile]
     geocoded_hdr = [os.path.splitext(f)[0] + ".hdr" for f in geocoded_envi]
     print("Retrieve geocoded results:")
@@ -117,6 +135,10 @@ def clean_amster(amster, infile, links):
         print("Removing:", l)
         os.remove(l)
     dir = os.path.join(amster, "i12", "GeoProjection")
+
+    if type(infile) is str:
+        infile = ["b{}_{}".format(b, os.path.splitext(os.path.basename(infile))[0]) for b in range(1, gdal.Open(infile).RasterCount + 1)]
+    
     for f in infile:
         ras = glob.glob(os.path.join(dir, "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.ras")[0]
         sh = glob.glob(os.path.join(dir, "REGEOC." + os.path.splitext(os.path.basename(f))[0]) + ".*.ras.sh")[0]
@@ -133,20 +155,33 @@ if __name__ == "__main__":
     amster = args["--amster-dir"]
     param = args["--param"]
     outdir = args["--outdir"]
+    merge = False
 
     infile = resolve_infile(infile)
     print("Processing files:", infile)
+    for f in infile:
+        # check if can be opened by gdal
+        gdal.Open(f)
 
-    links = move_to_amster(amster, infile)
-    print(links)
-
-    links = translate_to_envi(links)
-    print("Tranlated tifs to ENVI")
+    if len(infile) == 1 and gdal.Open(infile[0]).RasterCount > 1:
+        print(">> Processing cube")
+        merge = True
+        infile = infile[0]
+        links = cube_to_amster(amster, infile)
+    
+    else:
+        links = move_to_amster(amster, infile)
 
     launch_geocode(amster, param)
 
     get_back_geocoded(amster, outdir, infile)
 
     clean_amster(amster, infile, links)
+
+    # if merge:
+    #     cmd = "gdal_merge -o geoc.{} -of ENVI {}".format(
+    #         os.path.splitext(os.path.basename(infile))[0] + ".bil",
+    #         " ".join()
+    #     )
 
     print("done")
