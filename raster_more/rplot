@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+FOLDER="$(dirname "$0")"
+PARENT="$(dirname "$FOLDER")"
+
+python3 "$FOLDER"/rplot.py "$@"
