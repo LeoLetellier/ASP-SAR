@@ -9,6 +9,7 @@
 ############################################
 # Author        : Mathieu Volat 
 #                 Simon Daout (CRPG-ENSG)
+# Revision      : Leo Letellier
 ############################################
 
 """
@@ -36,8 +37,8 @@ Options:
 --band=<band>           Select band number [default: 1] 
 --vmax=<vmax>           Max colorscale [default: 98th percentile]
 --vmin=<vmin>           Min colorscale [default: 2th percentile]
---cols=<cols> VALUE     Add marker on pixel column numbers (eg. 200,400,450)
---lines=<lines> VALUE   Add marker on pixel lines numbers  (eg. 1200,1200,3000)
+--cols=<cols>           Add marker on pixel column numbers (eg. 200,400,450)
+--lines=<lines>         Add marker on pixel lines numbers  (eg. 1200,1200,3000)
 --ndv=<ndv>             Use an additionnal no data value
 --zoom=<zoom>           Additionnaly display a zoom of the raster ("xmin,xmax,ymin,ymax")
 --histo                 Additionnaly display the raster histogram
@@ -52,19 +53,14 @@ print()
 print('revised version June 2025 (Leo Letellier)')
 print()
 
-import os, sys
-
 try:
     from nsbas import docopt
 except:
     import docopt
 
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
-
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from pylab import setp
 from osgeo import gdal
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
@@ -82,13 +78,25 @@ EXT = {
     'GDAL': [
         '.tif',
         '.bil',
+        '.int',
+        '.slc',
+        '.flat',
     ],
     'AMSTER': [
     ],
     'GAMMA': [
         '.diff',
-    ]
+    ],
 }
+
+
+def arg2value(value, conversion=None, default=None):
+    """Convert a string argument if exists otherwise use default value"""
+    if value is None:
+        return default
+    elif conversion is not None:
+        return conversion(value)
+    return value
 
 
 def resolve_format(infile):
@@ -144,23 +152,33 @@ def open_band_gdal(file, band, crop):
 def open_band_real4(file, band, params, crop, cube):
     """Open as REAL4 raster"""
     fid = open(file, 'r')
-    if crop is not None:
-        print("crop will be ignored with .r4")
     if cube:
         x_dim, y_dim, band_nb = list(map(int, open(params).readline().split(None, 3)[0:3]))
-        phi = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim * band_nb].reshape((y_dim, x_dim, band_nb))
-        data = [phi[:, :, band - 1]]
+        phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim * band_nb].reshape((y_dim, x_dim, band_nb))
+        phase = phase[:, :, band - 1]
     else:
-        x_dim, y_dim = list(map(int, open(params).readline().split(None, 2)[0:2]))
-        phi = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim].reshape((y_dim, x_dim))
-        data = [phi]
+        if os.path.splitext(params)[1] == '.rsc':
+            lines = open(params).read().strip().split('\n')
+            for l in lines:
+                if 'WIDTH' in l:
+                    x_dim = int(''.join(filter(str.isdigit, l)))
+                elif 'FILE_LENGTH' in l:
+                    y_dim = int(''.join(filter(str.isdigit, l)))
+        else:
+            x_dim, y_dim = list(map(int, open(params).readline().split(None, 2)[0:2]))
+        phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim].reshape((y_dim, x_dim))
         band_nb = 1
+
+    if crop is not None:
+        phase = phase[crop[2]:crop[3], crop[0]:crop[1]]
+
+    data = [phase]
     data_type = np.float32
     driver = 'REAL4'
     return data, driver, x_dim, y_dim, band_nb, data_type
 
 
-def open_band_roipac(file, crop, supp_ndv):
+def open_band_roipac(file, crop):
     """Open as custom ROIPAC raster (amplitude / phase)"""
     ds = gdal.OpenEx(file, allowed_drivers=["ROI_PAC"])
     if crop is None:
@@ -183,9 +201,6 @@ def open_band_roipac(file, crop, supp_ndv):
         amp_data[amp_data == amp_ndv] = np.nan
     data = [phase_band, amp_band]
     data_type = gdal.GetDataTypeName(phase_band.DataType)
-
-    if supp_ndv is not None:
-        data[0][data[0] == supp_ndv] = np.nan
     
     return data, driver, x_dim, y_dim, band_nb, data_type
 
@@ -203,6 +218,9 @@ def open_band_gamma(file, params, crop):
     else:
         y_dim, x_dim = gm.readpar()
         phase = gm.readgamma_int(file)
+
+    if crop is not None:
+        phase = phase[crop[2]:crop[3], crop[0]:crop[1]]
     
     data = [phase]
     driver = 'GAMMA'
@@ -227,7 +245,7 @@ def open_band_amster(file, params, crop):
     data_type = np.float32
 
     if crop is not None:
-        pass
+        pass # TODO implement crop
 
     return data, driver, x_dim, y_dim, band_nb, data_type
 
@@ -262,12 +280,8 @@ def correct_values_amp(amp, ext):
 
 def resolve_plot(data, arguments, crop):
     """Manage all displays to be plotted"""
-    vmin = arguments["--vmin"]
-    if vmin is not None:
-        vmin = float(vmin)
-    vmax = arguments["--vmax"]
-    if vmax is not None:
-        vmax = float(vmax)
+    vmin = arg2value(arguments["--vmin"], float)
+    vmax = arg2value(arguments["--vmax"], float)
     if (vmax is None) ^ (vmin is None):
         vmin = -vmin if vmin is not None else vmax
         vmax = -vmax if vmax is not None else vmin
@@ -294,13 +308,16 @@ def resolve_plot(data, arguments, crop):
             cross[0] = [k - crop[0] for k in cross[0]]
             cross[1] = [k - crop[2] for k in cross[1]]
 
-    title = arguments["--title"]
-    if title is None:
-        title = arguments["<infile>"]
+    title = arg2value(arguments["--title"], default=arguments["<infile>"])
 
     zoom = arguments["--zoom"]
     if zoom is not None:
         zoom = [int(z) for z in zoom.split(',')]
+        if crop is not None:
+            zoom[0] = zoom[0] - crop[0]
+            zoom[1] = zoom[1] - crop[0]
+            zoom[2] = zoom[2] - crop[2]
+            zoom[3] = zoom[3] - crop[2]
 
     # Plot the main dislay (phase)
     plot_raster(data[0], cpt, vmin, vmax, cross, title, zoom)
@@ -365,6 +382,7 @@ def plot_histo(data, title, zoom):
     plt.legend()
 
     # TODO add a box plot view ?
+    # min min2% 
 
 
 def plot_zoom(data, zoom, cpt, title):
@@ -431,20 +449,13 @@ if __name__ == "__main__":
     if file_format is None:
         file_format, param_file = resolve_format(infile)
 
-    band = arguments["--band"]
-    if band is None:
-        band = 1
-    else:
-        band = int(band)
-
-    supp_ndv = arguments["--ndv"]
-    if supp_ndv is not None:
-        supp_ndv = float(supp_ndv)
+    band = arg2value(arguments["--band"], int, 1)
+    supp_ndv = arg2value(arguments["--ndv"], float)
     
     if file_format == 'REAL4':
         data, driver, x, y, b, dtype = open_band_real4(infile, band, param_file, crop, cube=roicube)
     elif file_format == 'ROI_PAC':
-        data, driver, x, y, b, dtype = open_band_roipac(infile, crop, supp_ndv)
+        data, driver, x, y, b, dtype = open_band_roipac(infile, crop)
     elif file_format == 'AMSTER':
         data, driver, x, y, b, dtype = open_band_amster(infile, param_file, crop)
     elif file_format == 'GAMMA':
@@ -454,12 +465,8 @@ if __name__ == "__main__":
 
     display_raster_format(infile, driver, x, y, b, dtype)
 
-    rad2mm = arguments["--rad2mm"]
-    if rad2mm is not None:
-        rad2mm = float(rad2mm)
-    wrap = arguments["--wrap"]
-    if wrap is not None:
-        wrap = float(wrap)
+    rad2mm = arg2value(arguments["--rad2mm"], float)
+    wrap = arg2value(arguments["--wrap"], float)
 
     data[0] = correct_values_phase(data[0], ext, rad2mm, wrap, supp_ndv)
     if len(data) > 1:
