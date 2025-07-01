@@ -77,6 +77,7 @@ EXT = {
     ],
     'GDAL': [
         '.tif',
+        '.tiff',
         '.bil',
         '.int',
         '.slc',
@@ -119,6 +120,8 @@ def resolve_format(infile):
         return 'REAL4', maybe_real4_param
     elif file_format == 'AMSTER' or (file_format is None and has_amster_param):
         return 'AMSTER', maybe_amster_param
+    elif file_format == 'ROIPAC':
+        return 'ROIPAC', None
     elif file_format == 'GAMMA':
         raise ValueError('To use GAMMA file please provide the par header file')
     
@@ -145,8 +148,11 @@ def open_band_gdal(file, band, crop):
     y_dim = crop[3] - crop[2]
     array = band.ReadAsArray(crop[0], crop[2], x_dim, y_dim)
     if ndv is not None and ndv != np.nan:
-        array[array == ndv] = np.nan
-    return [array], ds.GetDriver().ShortName, x_dim, y_dim, ds.RasterCount, gdal.GetDataTypeName(band.DataType)
+        try:
+            array[array == ndv] = np.nan
+        except:
+            pass
+    return [array], ds.GetDriver().ShortName, ds.RasterXSize, ds.RasterYSize, ds.RasterCount, gdal.GetDataTypeName(band.DataType)
 
 
 def open_band_real4(file, band, params, crop, cube):
@@ -182,7 +188,7 @@ def open_band_roipac(file, crop):
     """Open as custom ROIPAC raster (amplitude / phase)"""
     ds = gdal.OpenEx(file, allowed_drivers=["ROI_PAC"])
     if crop is None:
-        crop = [0, ds.XSize, 0, ds.YSize]
+        crop = [0, ds.RasterXSize, 0, ds.RasterYSize]
     x_dim = crop[1] - crop[0]
     y_dim = crop[3] - crop[2]
     driver = ds.GetDriver().ShortName
@@ -199,10 +205,10 @@ def open_band_roipac(file, crop):
         phase_data[phase_data == phase_ndv] = np.nan
     if amp_ndv is not None and amp_ndv != np.nan:
         amp_data[amp_data == amp_ndv] = np.nan
-    data = [phase_band, amp_band]
+    data = [phase_data, amp_data]
     data_type = gdal.GetDataTypeName(phase_band.DataType)
     
-    return data, driver, x_dim, y_dim, band_nb, data_type
+    return data, driver, ds.RasterXSize, ds.RasterYSize, band_nb, data_type
 
 
 def open_band_gamma(file, params, crop):
@@ -278,7 +284,7 @@ def correct_values_amp(amp, ext):
     return amp
 
 
-def resolve_plot(data, arguments, crop):
+def resolve_plot(data, arguments, crop, do_save):
     """Manage all displays to be plotted"""
     vmin = arg2value(arguments["--vmin"], float)
     vmax = arg2value(arguments["--vmax"], float)
@@ -313,35 +319,52 @@ def resolve_plot(data, arguments, crop):
     zoom = arguments["--zoom"]
     if zoom is not None:
         zoom = [int(z) for z in zoom.split(',')]
-        if crop is not None:
-            zoom[0] = zoom[0] - crop[0]
-            zoom[1] = zoom[1] - crop[0]
-            zoom[2] = zoom[2] - crop[2]
-            zoom[3] = zoom[3] - crop[2]
+    
+    origin = None
+    if crop is not None:
+        origin = (crop[0], crop[2])
 
     # Plot the main dislay (phase)
-    plot_raster(data[0], cpt, vmin, vmax, cross, title, zoom)
+    plot_raster(data[0], cpt, vmin, vmax, cross, title, zoom, origin)
+
+    if do_save:
+        print("Saving figure...")
+        plt.savefig(infile + '.pdf', format='PDF', dpi=180)
     
     if len(data) > 1:
         # Plot the secondary display (amplitude)
-        plot_raster(data[1], title=title + " [Amplitude]")
+        vmin = np.nanpercentile(data[1], 2)
+        vmax = np.nanpercentile(data[1], 98)
+        plot_raster(data[1], 'Greys', vmin, vmax, cross, title + " [Amplitude]", zoom, origin)
+        if do_save:
+            print("Saving amplitude...")
+            plt.savefig(infile + '_amplitude.pdf', format='PDF', dpi=180)
 
     if arguments["--histo"]:
         # Plot all histograms
-        plot_histo(data, title, zoom)
+        plot_histo(data, title, crop, zoom)
+        if do_save:
+            print("Saving histo...")
+            plt.savefig(infile + '_histo.pdf', format='PDF', dpi=180)
 
     if zoom is not None:
-        plot_zoom(data, zoom, cpt, title)
+        plot_zoom(data, crop, zoom, cpt, title)
+        if do_save:
+            print("Saving zoom...")
+            plt.savefig(infile + '_zoom.pdf', format='PDF', dpi=180)
     
     if arguments["--stats"]:
         display_stats(data, zoom)
 
 
-def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom):
+def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin):
     """Construct the raster display"""
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(1,1,1)
-    hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax)
+    extent = None
+    if origin is not None:
+        extent = (origin[0], origin[0] + raster.shape[1], origin[1] + raster.shape[0], origin[1])
+    hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax, extent=extent)
     ax.set_title(title)
     divider = make_axes_locatable(ax)
     c = divider.append_axes("right", size="5%", pad=0.05)
@@ -359,7 +382,7 @@ def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom):
     plt.tight_layout()
 
 
-def plot_histo(data, title, zoom):
+def plot_histo(data, title, crop, zoom):
     """Construct the histogram display"""
     fig = plt.figure(figsize=(5, 5))
 
@@ -368,8 +391,10 @@ def plot_histo(data, title, zoom):
     if len(data) > 1:
         histo_data.append(data[1])
         histo_label.append('Secondary')
+    if crop is None or len(crop) != 4:
+        crop = [0, data[0].shape[0], 0, data[0].shape[1]]
     if zoom is not None:
-        histo_data.append(data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]])
+        histo_data.append(data[0][zoom[2] - crop[3]:zoom[3] - crop[3], zoom[0] - crop[0]:zoom[1] - crop[0]])
         histo_label.append('Zoom')
     
     for d, l in zip(histo_data, histo_label):
@@ -385,12 +410,14 @@ def plot_histo(data, title, zoom):
     # min min2% 
 
 
-def plot_zoom(data, zoom, cpt, title):
+def plot_zoom(data, crop, zoom, cpt, title):
     """Construct the zoom display"""
-    zdata = data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]]
+    if crop is None or len(crop) != 4:
+        crop = [0, data[0].shape[0], 0, data[0].shape[1]]
+    zdata = data[0][zoom[2] - crop[3]:zoom[3] - crop[3], zoom[0] - crop[0]:zoom[1] - crop[0]]
     vmin = np.nanpercentile(zdata, 2)
     vmax = np.nanpercentile(zdata, 98)
-    plot_raster(zdata, cpt, vmin, vmax, cross=None, title=title + " [ZOOM]", zoom=None)
+    plot_raster(zdata, cpt, vmin, vmax, cross=None, title=title + " [ZOOM]", zoom=None, origin=(zoom[0], zoom[2]))
 
 
 def display_raster_format(infile, driver, x, y, b, dtype):
@@ -454,14 +481,14 @@ if __name__ == "__main__":
     
     if file_format == 'REAL4':
         data, driver, x, y, b, dtype = open_band_real4(infile, band, param_file, crop, cube=roicube)
-    elif file_format == 'ROI_PAC':
+    elif file_format == 'GDAL' or (file_format == 'ROIPAC' and arguments["--band"] is not None):
+        data, driver, x, y, b, dtype = open_band_gdal(infile, band, crop)
+    elif file_format == 'ROIPAC':
         data, driver, x, y, b, dtype = open_band_roipac(infile, crop)
     elif file_format == 'AMSTER':
         data, driver, x, y, b, dtype = open_band_amster(infile, param_file, crop)
     elif file_format == 'GAMMA':
         data, driver, x, y, b, dtype = open_band_gamma(infile, param_file, crop)
-    elif file_format == 'GDAL':
-        data, driver, x, y, b, dtype = open_band_gdal(infile, band, crop)
 
     display_raster_format(infile, driver, x, y, b, dtype)
 
@@ -474,9 +501,7 @@ if __name__ == "__main__":
 
     do_save = arguments["--save"]
     
-    resolve_plot(data, arguments, crop)
-    
-    if do_save:
-        plt.savefig(infile + '.pdf', format='PDF', dpi=180)
+    resolve_plot(data, arguments, crop, do_save)
+
     plt.show()
     
