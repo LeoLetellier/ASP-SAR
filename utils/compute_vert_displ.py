@@ -64,7 +64,7 @@ def save_to_file(data, output_path, ncol, nrow, proj, geotransform):
 arguments = docopt.docopt(__doc__)
 
 we_displ_file = arguments['--we']
-sn_displ_file = arguments['--sn']
+ns_displ_file = arguments['--sn']
 dsm_diff_file = arguments['--vert']
 dsm_file = arguments['--dsm']
 dest_path = arguments['--dest']
@@ -76,8 +76,8 @@ angle_threshold = float(arguments['--angle_threshold']) if arguments['--angle_th
 
 # Read data
 we_displ = read_tif(we_displ_file)[0]  # positive towards east
-ns_displ = -read_tif(sn_displ_file)[0]  # take negative to make positive towards south
-dsm_diff = read_tif(dsm_diff_file)[0]
+ns_displ = -read_tif(ns_displ_file)[0] # positive towards south 
+dsm_diff = read_tif(dsm_diff_file)[0] # convention: negative when erosion
 dsm, dsm_cols, dsm_lines, dsm_proj, dsm_geotransf = read_tif(dsm_file)
 
 if not (we_displ.shape == ns_displ.shape == dsm_diff.shape == dsm.shape):
@@ -88,23 +88,25 @@ filter_sigma_x = filter_size / abs(dsm_geotransf[1])
 filter_sigma_y = filter_size / abs(dsm_geotransf[5])
 dsm_filtered = gaussian_filter(dsm, sigma=(filter_sigma_y, filter_sigma_x))
 
-# Compute gradients n = (dx,dy,-1)
-dsm_dy, dsm_dx = np.gradient(dsm_filtered, dsm_geotransf[5], dsm_geotransf[1]) # dy is positive towards north, while dx is positive towards east
-dsm_dz = -1 # positive towards up
+# Compute gradients n = (dx,dy)
+dsm_dy, dsm_dx = np.gradient(dsm_filtered, dsm_geotransf[5], dsm_geotransf[1]) # dy is positive towards south, while dx is positive towards east
 
-# Compute slope normal vector components
-amplitude = np.sqrt(dsm_dx**2 + dsm_dy**2 + dsm_dz**2)
-nx, ny, nz = dsm_dx / amplitude, dsm_dy / amplitude, dsm_dz / amplitude
+# Compute downslope unit vector (horizontal component of slope vector)
+norm_ns = np.sqrt(dsm_dx**2 + dsm_dy**2)
+ns_x = dsm_dx / norm_ns
+ns_y = dsm_dy / norm_ns
 
-# Compute slope and horizontal displacement magnitude
-slope = np.sqrt(dsm_dx**2 + dsm_dy**2)
+# Compute horizontal displacement magnitude
 u_H = np.sqrt(we_displ**2 + ns_displ**2)
 
-# Compute scalar product  (a.b = a1b1 + a2b2)
-dot_product = nx * we_displ + ny * ns_displ
+# Project u_H onto downslope direction
+u_proj = we_displ * ns_x + ns_displ * ns_y  # scalar projection 
 
-# Compute vertical displacements
-vert_displ = dsm_diff - np.sign(dot_product) * slope * u_H
+# Compute slope magnitude
+slope = np.sqrt(dsm_dx**2 + dsm_dy**2)  # tan(slope_angle)
+
+# Compute vertical displacement
+vert_displ = dsm_diff - slope * u_proj
 
 # Mask all the pixels for which the horizontal displacements vector is orientated at more than for example 30° from the down-slope direction.
 aspect = (np.rad2deg(np.arctan2(dsm_dy, -dsm_dx)) + 360 ) % 360   # clock-wise slope direction from 0 to 360 
@@ -122,7 +124,7 @@ output_path = os.path.join(dest_path, f'aspect.tif')
 save_to_file(aspect, output_path, dsm_cols, dsm_lines, dsm_proj, dsm_geotransf)
 
 # Zoom sur la zone d'intérêt
-crop_slice = (slice(450, 850), slice(500, 900))
+crop_slice = (slice(450, 950), slice(500, 1000))
 dsm_diff_crop = dsm_diff[crop_slice]
 u_H_crop = u_H[crop_slice]
 vert_displ_crop = vert_displ[crop_slice]
@@ -140,7 +142,7 @@ vmax = 10 # harcoding
 
 # DSM difference
 ax = fig.add_subplot(2, 3, 1)
-ax.imshow(aspect_crop, cmap='Greys_r')
+#ax.imshow(aspect_crop, cmap='Greys_r')
 cax = ax.imshow(dsm_diff_crop, cmap='coolwarm', origin='upper', vmax=vmax, vmin=-vmax, alpha=0.5)
 ax.set_title("DSM Differences (dz)")
 ax.set_xticks([])
@@ -151,7 +153,7 @@ plt.colorbar(cax, cax=c)
 
 # Horizontal displacement magnitude
 ax = fig.add_subplot(2, 3, 2)
-ax.imshow(aspect_crop, cmap='Greys_r')
+#ax.imshow(aspect_crop, cmap='Greys_r')
 cax = ax.imshow(u_H_crop, cmap='coolwarm', origin='upper',  
                 vmax=np.nanpercentile(u_H_crop, 95), vmin=np.nanpercentile(u_H_crop, 5), alpha=0.5)
 ax.set_title("Horizontal Displacement Magnitude")
@@ -163,7 +165,7 @@ plt.colorbar(cax, cax=c)
 
 # Vertical displacement
 ax = fig.add_subplot(2, 3, 3)
-ax.imshow(aspect_crop, cmap='Greys_r')
+#ax.imshow(aspect_crop, cmap='Greys_r')
 cax = ax.imshow(vert_displ_crop, cmap='coolwarm', origin='upper', vmax=vmax, vmin=-vmax, alpha=0.5)
 ax.set_title("Vertical Displacements (u_z)")
 ax.set_xticks([])
@@ -174,8 +176,8 @@ plt.colorbar(cax, cax=c)
 
 # Downslope direction (omega)
 ax = fig.add_subplot(2, 3, 4)
-cax = ax.imshow(omega_crop, cmap='Greys_r', origin='upper', alpha=0.5, vmax=180, vmin=0)
-ax.set_title("Downslope Direction (clockwise from east)")
+cax = ax.imshow(omega_crop, cmap='Greys_r', origin='upper', alpha=0.5, vmax=360, vmin=0)
+ax.set_title("Velocity Direction (clockwise from east)")
 ax.set_xticks([])
 ax.set_yticks([])
 divider = make_axes_locatable(ax)
@@ -184,7 +186,7 @@ plt.colorbar(cax, cax=c)
 
 # Slope direction (omega)
 ax = fig.add_subplot(2, 3, 5)
-ax.imshow(aspect_crop, cmap='Greys_r', origin='upper', alpha=0.5, vmax=180, vmin=0)
+ax.imshow(aspect_crop, cmap='Greys_r', origin='upper', alpha=0.5, vmax=360, vmin=0)
 ax.set_title("Slope Direction (clockwise from east)")
 ax.set_xticks([])
 ax.set_yticks([])
