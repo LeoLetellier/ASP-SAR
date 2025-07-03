@@ -394,7 +394,7 @@ def plot_histo(data, title, crop, zoom):
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
     if zoom is not None:
-        histo_data.append(data[0][zoom[2] - crop[3]:zoom[3] - crop[3], zoom[0] - crop[0]:zoom[1] - crop[0]])
+        histo_data.append(data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]])
         histo_label.append('Zoom')
     
     for d, l in zip(histo_data, histo_label):
@@ -414,7 +414,7 @@ def plot_zoom(data, crop, zoom, cpt, title):
     """Construct the zoom display"""
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
-    zdata = data[0][zoom[2] - crop[3]:zoom[3] - crop[3], zoom[0] - crop[0]:zoom[1] - crop[0]]
+    zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
     vmin = np.nanpercentile(zdata, 2)
     vmax = np.nanpercentile(zdata, 98)
     plot_raster(zdata, cpt, vmin, vmax, cross=None, title=title + " [ZOOM]", zoom=None, origin=(zoom[0], zoom[2]))
@@ -435,14 +435,17 @@ def display_stats(data, zoom):
     print("> Stats")
     print("\tMain: ", end='')
     print(describe(data[0], axis=None, nan_policy="omit"))
+    print("median:", np.nanmedian(data[0]))
 
     if len(data) > 1:
         print("\tSecondary: ", end='')
         print(describe(data[1], axis=None, nan_policy="omit"))
+        print("median:", np.nanmedian(data[1]))
     
     if zoom is not None:
         print("\tZoom: ", end='')
         print(describe(data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]], axis=None, nan_policy="omit"))
+        print("median:", np.nanmedian(data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]]))
     
 
 if __name__ == "__main__":
