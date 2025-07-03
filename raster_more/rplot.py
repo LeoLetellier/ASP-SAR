@@ -289,8 +289,8 @@ def resolve_plot(data, arguments, crop, do_save):
     vmin = arg2value(arguments["--vmin"], float)
     vmax = arg2value(arguments["--vmax"], float)
     if (vmax is None) ^ (vmin is None):
-        vmin = -vmin if vmin is not None else vmax
-        vmax = -vmax if vmax is not None else vmin
+        vmin = -vmax if vmax is not None else vmin
+        vmax = -vmin if vmin is not None else vmax
     elif (vmax is None and vmin is None):
         vmin = np.nanpercentile(data[0], 2)
         vmax = np.nanpercentile(data[0], 98)
