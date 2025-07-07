@@ -451,6 +451,8 @@ def display_stats(data, zoom):
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     infile = arguments["<infile>"]
+    if not os.path.isfile(infile):
+        raise FileNotFoundError("No such raster file: {}".format(infile))
     ext = os.path.splitext(infile)[1]
 
     crop = arguments["--crop"]
@@ -475,6 +477,9 @@ if __name__ == "__main__":
     else:
         file_format = None
         param_file = None
+
+    if param_file is not None and not os.path.isfile(param_file):
+        raise FileNotFoundError("No such parameter file: {}".format(param_file))
 
     if file_format is None:
         file_format, param_file = resolve_format(infile)
