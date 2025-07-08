@@ -17,7 +17,7 @@ Options:
 """
 
 from check_all2gif import check_for_empty_files
-from prepare_correl_dir import prepare_dir_list, link_files, get_az_range_sampling
+from prepare_correl_dir import prepare_dir_list, link_files, save_az_range_sampling
 from convert_geotiff import convert_all
 
 import os
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     link_files(data_path_list, working_dir)
 
     geotiff_dir = os.path.join(working_dir, "GEOTIFF")
-    correl_dir = os.path.join(working_dir, "CORREL")
+    correl_dir = os.path.join(working_dir, "STEREO")
 
     try:
         os.mkdir(geotiff_dir)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     except:
         print("CORREL dir already exists, keeping it")
 
-    get_az_range_sampling(data_path_list, working_dir)
+    save_az_range_sampling(data_path_list, working_dir)
 
     all_file_df = pd.DataFrame(columns=['file', 'ncol', 'nrow'])
     convert_all(working_dir, all_file_df, geotiff_dir, s1)

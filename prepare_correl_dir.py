@@ -15,126 +15,75 @@ Options:
 --u                 Only update the links
 
 """
-##########
-# IMPORT #
-##########
 
-import os, sys
-import numpy as np
-from osgeo import gdal
-from matplotlib import pyplot as plt
+import os
 import pandas as pd
-import re
 from pathlib import Path
-from init_asp_parameters import init_asp_parameters 
 import docopt
 
-#############
-# FUNCTIONS #
-#############
 
 def filter_mod_files(input_file):
-    real_path = os.path.realpath(input_file)
-    i12_path = os.path.dirname(os.path.dirname(real_path))
+    """Check if the mod file has not zero dimensions"""
+    i12_path = os.path.dirname(os.path.dirname(os.path.realpath(input_file)))
     insar_param_file = os.path.join(i12_path, 'TextFiles', 'InSARParameters.txt')
     with open(insar_param_file, 'r') as f:
-        # read lines of file and remove whitespace and comments (comments after \t\t)
         lines = [''.join(l.strip().split('\t\t')[0]) for l in f.readlines()]
-        #print(lines)
         jump_index = lines.index('/* -5- Interferometric products computation */')
         img_dim = lines[jump_index + 2: jump_index + 4]
-        #print(img_dim)
 
     ncol, nrow = int(img_dim[0].strip()), int(img_dim[1].strip())
-    if(ncol == 0):
-        return False
-    else:
-        return True
+    return not (ncol == 0 or nrow == 0)
+
 
 def prepare_dir_list(input_path):
-   
-    # for preparation with ALL2GIF.sh
-    # maybe problem with region name if condition is coded like this
-    # data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if(len(d.split('_')) == 7 and os.path.isdir(os.path.join(input_path, d)))]
-    # this solution should work with ALL2GIF and other MasTer Massprocessing results (to be checked)
-
-    # for d in os.listdir(input_path):
-    #     if(d[0] == '2' and os.path.isdir(os.path.join(input_path, d))):
-    #         print("A", d)
-    #     else:
-    #         print("B", d)
-    #     if os.path.isdir(os.path.join(input_path, d)) and not d[0] == "_":
-    #         print("C", d)
-    #     print("isdir", os.path.isdir(d))
-    
-    # data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if(d[0] == '2' and os.path.isdir(os.path.join(input_path, d)))]
-    data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if os.path.isdir(os.path.join(input_path, d)) and not d[0] == "_"]
-    # print("input path", input_path)
-    # print(data_dirs_paths)
-
-    for d in os.listdir(input_path):
-        if(os.path.isdir(d)):
-            print(print(len(d.split('_'))))
-
-    #compare_list = []
+    """Retrieve all valid mod files"""
+    data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if os.path.isdir(os.path.join(input_path, d, 'i12', 'InSARProducts'))]
+    data_dirs_paths = list(set(data_dirs_paths))
     out_list = []
     
-    # walk through all i12/InSARProducts directories and save paths to DATE.VV.mod files in list
-    # need to filter te results to link the mod files where interferometric dimensions in i12/TextFiles/InSARParameters.txt != 0
     for d in data_dirs_paths:
-        # print("dir",d)
-        # print(os.listdir(d))
         for f in os.listdir(d):
-            # print(os.path.splitext(f)[1])
-            if(os.path.splitext(f)[1] == '.mod'):
-                # only add mod files to list, where dimensions are != 0
-                #compare_list += [os.path.join(d, f)]
-
-                if(filter_mod_files(os.path.join(d, f))):
-                    out_list += [os.path.join(d, f)]
-                else:
-                    continue
-    
-    # return list with path to mod files f.e. 
-    # input_path/20220717_20220919/i12/InSARProducts/[DATE].VV.mod
-    # print("outlist", out_list)
+            file = os.path.join(d, f)
+            if(os.path.splitext(file)[1] == '.mod'):
+                if file not in out_list and filter_mod_files(file):
+                    out_list.append(file)
     return out_list
 
-# create link to every file in dst directory
+
 def link_files(data_path_list, dst_path):
+    """Link the mod files to the working directory"""
     print('Start linking files')
     for p in data_path_list:
-        if(os.path.isfile(os.path.join(dst_path, os.path.basename(p)))):
-            continue
-        else:
-            os.symlink(p, os.path.join(dst_path, os.path.basename(p)))
+        target = os.path.join(dst_path, os.path.basename(p))
+        if not os.path.islink(target):
+            print("symlink", p, target)
+            os.symlink(p, target)
     print('Finished linking files')
 
-def get_az_range_sampling(data_path_list, correl_path):
-    # only need one InSARParameters.txt file bc azimuth and slant range sampling are same for all
-    # need parent of parent dir bc in data_path_list are paths to DATE.mod files
+
+def save_az_range_sampling(data_path_list, correl_path):
+    """Fetch the pixel dimension and save it to file"""
     result_dir = os.path.dirname(os.path.dirname(data_path_list[0]))
     insar_param_file = os.path.join(result_dir, 'TextFiles', 'InSARParameters.txt')
     with open(insar_param_file, 'r') as f:
-        # read lines of file and remove whitespace
         lines = [''.join(l.strip().split('\t\t')) for l in f.readlines()]
         for l in lines:
-            if('Azimuth sampling' in l):
+            if 'Azimuth sampling' in l:
                 azimuth_sampl = l.split('/')[0].strip()
-            if('Slant range sampling' in l):
+            elif 'Slant range sampling' in l:
                 range_sampl = l.split('/')[0].strip()
-                break
+            # also get ML factor to get final sampling
+            elif '/* Range reduction factor [pix] */' in l:
+                range_factor = l.split('/')[0].strip()
+            elif '/* Azimuth reduction factor [pix] */' in l:
+                azimuth_factor = l.split('/')[0].strip()
 
-    sampling = pd.DataFrame(data={'AZ':[azimuth_sampl], 'SR':[range_sampl]})
+    sampling = pd.DataFrame(data={'AZ':[float(azimuth_sampl) * float(azimuth_factor)], 'SR':[float(range_sampl) * float(range_factor)]})
     sampling.to_csv(os.path.join(correl_path, 'sampling.txt'), sep='\t', index=None)
 
 
-########
-# MAIN #
-########
-
 if __name__ == "__main__":
-
+    from init_asp_parameters import init_asp_parameters 
     arguments = docopt.docopt(__doc__)
 
     # path to data processed with MasTer
@@ -160,7 +109,4 @@ if __name__ == "__main__":
         # save asp_parameters and sampling in destination directory instead of CORREL
         init_asp_parameters(dst_path)
 
-        get_az_range_sampling(data_path_list, dst_path)
-
-
-
+        save_az_range_sampling(data_path_list, dst_path)
