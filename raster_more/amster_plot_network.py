@@ -4,7 +4,7 @@
 amster_plot_network.py
 ------------
 
-Usage: amster_plot_network.py <table> <baselines>
+Usage: amster_plot_network.py <table> [<baselines>]
 
 Options:
 -h | --help         Show this screen
@@ -72,19 +72,21 @@ if __name__ == "__main__":
 
     table = arguments["<table>"]
     baselines_file = arguments["<baselines>"]
+    if baselines_file is None:
+        baselines_file = 'SM_Approx_baselines.txt'
 
     pairs = open_table(table)
-    print("pairs", pairs)
+    # print("pairs", pairs)
     baselines = open_baselines(baselines_file)
-    print("baselines", baselines)
+    # print("baselines", baselines)
 
     all_dates = list(set([p[0] for p in pairs] + [p[1] for p in pairs]))
 
     primary = baselines[0][0]
     if primary not in baselines[1]:
         primary = baselines[0][1]
-    print("primary", primary)
-    print(len(all_dates))
+    # print("primary", primary)
+    # print(len(all_dates))
 
     bb = []
     if primary in all_dates:
@@ -95,16 +97,16 @@ if __name__ == "__main__":
         if date == primary:
             date = b[1]
             bp = b[2]
-        else:
-            print("switch")
+        # else:
+            # print("switch")
         if date in all_dates:
             bb.append([date, bp])
 
-    print(all_dates)
-    print(bb)
+    # print(all_dates)
+    # print(bb)
 
-    if len(all_dates) != len(bb):
-        print("length pb")
+    # if len(all_dates) != len(bb):
+    #     print("length pb")
 
     plot_network(pairs, bb)
     plt.show()

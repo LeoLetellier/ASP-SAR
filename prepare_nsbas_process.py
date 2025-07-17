@@ -14,9 +14,6 @@ Options:
 --masked            Use the masked files to prepare NSBAS processing
 
 """
-##########
-# IMPORT #
-##########
 
 import os, sys
 import glob
@@ -28,18 +25,18 @@ import shutil
 from dateutil import parser
 import docopt
 
-#############
-# FUNCTIONS #
-#############
 
-# convert date to float for NSBAS processing (PyGdalSAR/correl/prep_correl_invers_pixel.py)
 def date_to_float(d):
+    """convert date to float for NSBAS processing (PyGdalSAR/correl/prep_correl_invers_pixel.py)"""
     return (d.year + (d.month-1)/12.0 + (d.day-1)/365.0)
 
-# help function to read data
-# input is table_... created with Prepa_MSBAS.sh (Master)
+
 def get_dates_and_Bp(pair_table):
-   
+    """
+    help function to read data
+    
+    input is table_... created with Prepa_MSBAS.sh (Master)
+    """
     # skip first two rows when reading data because of structure of table_...txt
     # needs to be adjusted if different input table file is used
     # pair_df = pd.read_csv(pair_table, sep='\t', header=None, skiprows=2)
@@ -48,9 +45,9 @@ def get_dates_and_Bp(pair_table):
     dates1, dates2, bp = np.loadtxt(pair_table, unpack=True, skiprows=2, usecols = (0, 1, 2))
     return (dates1, dates2, bp) 
 
-# calculate the Bp for each date using the table_0....txt(Master) and date_list(prepare_result_export) file 
-def get_perp_baseline_each_date(pair_table, date_list_file):
 
+def get_perp_baseline_each_date(pair_table, date_list_file):
+    """calculate the Bp for each date using the table_0....txt(Master) and date_list(prepare_result_export) file """
     # load bp for each pair and dates1 + dates2
     dates1, dates2, bp = get_dates_and_Bp(pair_table)
     M = len(bp)
@@ -69,16 +66,15 @@ def get_perp_baseline_each_date(pair_table, date_list_file):
             if(dates2[k] == date_list[n]):
                 G[k, n] = 1
 
-    
     # set first column of G to 0 -> get first date as reference; Bp of first date = 0
     G[:,0] = 0
     m = np.linalg.lstsq(G, bp, rcond=-1)
 
     return list(m[0])
 
-# generate list_pair file and saves it in /NSBAS_PROCESS/H|V
+
 def generate_list_pair(process_orient_dir, pair_table):
-    
+    """generate list_pair file and saves it in /NSBAS_PROCESS/H|V"""
     # get only master and slave dates - keep as pairs
     # pairs= pd.read_csv(pair_table, sep='\t', dtype=str).iloc[:,0:2]
     # pairs.to_csv(os.path.join(process_orient_dir, 'list_pair'), sep='\t', header=False, index=False)
@@ -87,9 +83,13 @@ def generate_list_pair(process_orient_dir, pair_table):
     print(pairs)
     np.savetxt(os.path.join(process_orient_dir, 'list_pair'), pairs, delimiter='\t', fmt='%s') 
     
-# for first try, run with Bp=0 for each date -> add calculation later with get_perp_baseline_each_date
-# generate list_dates file and saves it in /NSBAS_PROCESS/H|V
+
 def generate_list_dates(process_orient_dir, date_list_file, pair_table):
+    """
+    for first try, run with Bp=0 for each date -> add calculation later with get_perp_baseline_each_date
+
+    generate list_dates file and saves it in /NSBAS_PROCESS/H|V
+    """
     # read all dates in DataFrame structure (just one column)
     date_list = pd.read_csv(date_list_file, header=None).iloc[:,0].to_list()
     # convert all dates to decimal
@@ -114,10 +114,11 @@ def generate_list_dates(process_orient_dir, date_list_file, pair_table):
 
     out_df.to_csv(os.path.join(process_orient_dir, 'list_dates'), sep=' ', header=False, index=False)
 
-# orientation is 'H' or 'V'
-# if masked data is used, nsbas_input_dir = NSBAS/MASKED
-# if masked data is used, nsbas_process_path = NSBAS_PROCESS/MASKED/H|V
+
 def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation, pair_table, date_list_file, masked):
+    # orientation is 'H' or 'V'
+    # if masked data is used, nsbas_input_dir = NSBAS/MASKED
+    # if masked data is used, nsbas_process_path = NSBAS_PROCESS/MASKED/H|V
     # create subdir in NSBAS_PROCESS based on orientation
     process_orient_dir = os.path.join(nsbas_process_path, orientation)
     Path(process_orient_dir).mkdir(parents=True, exist_ok=True)
@@ -164,41 +165,38 @@ def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation
 
     # generate list_dates
     #generate_list_dates(process_orient_dir, date_list_file, pair_table)
+    
 
-########
-# MAIN #
-########
+if __name__ == "__main__":
+    arguments = docopt.docopt(__doc__)
 
-arguments = docopt.docopt(__doc__)
+    # path to data dir (former  working directory)
+    work_dir = arguments['--data']
 
-# path to data dir (former  working directory)
-work_dir = arguments['--data']
+    # check if masked is set
+    masked = arguments['--masked']
 
-# check if masked is set
-masked = arguments['--masked']
+    if(masked):
+        nsbas_process_dir = os.path.join(work_dir, 'NSBAS_PROCESS', 'MASKED')
+        Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
+    else:
+        nsbas_process_dir = os.path.join(work_dir, 'NSBAS_PROCESS')
+        Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
 
-if(masked):
-    nsbas_process_dir = os.path.join(work_dir, 'NSBAS_PROCESS', 'MASKED')
-    Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
-else:
-    nsbas_process_dir = os.path.join(work_dir, 'NSBAS_PROCESS')
-    Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
+    nsbas_input_dir = os.path.join(work_dir, 'EXPORT', 'NSBAS')
 
-nsbas_input_dir = os.path.join(work_dir, 'EXPORT', 'NSBAS')
-
-# TODO: check this part again - maybe give as parameter
-correl_dir = os.path.join(work_dir, 'CORREL')
-# get table file -> must be th only table_[...].txt file
-pair_table = glob.glob(os.path.join(correl_dir, "table*"))[0]
-# pair_table = [os.path.join(correl_dir, f) for f in os.listdir(correl_dir) if os.path.isfile(os.path.join(work_dir, f)) and f.split('_')[0] == 'table'][0]
-date_list_file = os.path.join(nsbas_input_dir, 'dates_list.txt')
+    # TODO: check this part again - maybe give as parameter
+    # correl_dir = os.path.join(work_dir, 'CORREL')
+    # get table file -> must be th only table_[...].txt file
+    pair_table = os.path.join(work_dir, "PAIRS", "table_pairs.txt")
+    # pair_table = [os.path.join(correl_dir, f) for f in os.listdir(correl_dir) if os.path.isfile(os.path.join(work_dir, f)) and f.split('_')[0] == 'table'][0]
+    date_list_file = os.path.join(nsbas_input_dir, 'dates_list.txt')
 
 
-print('START PREPARING H DIRECTORY')
-prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'H', pair_table, date_list_file, masked)
-print('FINISHED H')
+    print('START PREPARING H DIRECTORY')
+    prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'H', pair_table, date_list_file, masked)
+    print('FINISHED H')
 
-print('START PREPARING V DIRECTORY')
-prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'V', pair_table, date_list_file, masked)
-print('FINISHED V')
-
+    print('START PREPARING V DIRECTORY')
+    prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'V', pair_table, date_list_file, masked)
+    print('FINISHED V')

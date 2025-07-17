@@ -14,3 +14,10 @@ Options:
 --s1
 
 """
+
+if __name__ == "__main__":
+    pass
+
+    #prepare_result_export
+    #prepare_nsbas_process
+    #mask ?

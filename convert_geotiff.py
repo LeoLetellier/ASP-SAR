@@ -6,7 +6,7 @@ convert_geotiff.py
 Converts the ALL2GIF results to GeoTIFF. It takes the log() of the input image.
 An additional file is created (AMPLI_STACK_SIGMA_3.tif) with mean, 1/sigma and sigma as bands.
 
-Usage: prepare_correl_dir.py --data=<path> [--f] [--s1]
+Usage: prepare_correl_dir.py --data=<path> [--f] [--s1] [--mode=<mode>]
 prepare_correl_dir.py -h | --help
 
 Options:
@@ -14,6 +14,7 @@ Options:
 --data              Path to directory with linked data
 --f                 Force recomputation of all files
 --s1                Handle AMSTer names for Sentinel 1
+--mode              Texture enhancement mode (default: log)
 
 """
 
@@ -25,6 +26,9 @@ from pathlib import Path
 from math import *
 import docopt
 import shutil
+from skimage import exposure
+from skimage.filters.rank import entropy
+from skimage.morphology import disk
 
 
 def save_to_file(data, output_path):
@@ -34,7 +38,7 @@ def save_to_file(data, output_path):
     dst_band.WriteArray(data)
 
 
-def convert_single_file(input_file, img_dim, crop=None):
+def convert_single_file(input_file, img_dim, crop=None, mode='log'):
     filename = input_file
     output_dir = os.path.dirname(os.path.abspath(input_file))
     geotiff_dir = os.path.join(output_dir, 'GEOTIFF')
@@ -44,13 +48,30 @@ def convert_single_file(input_file, img_dim, crop=None):
     amp = m[:nrow*ncol].reshape((nrow,ncol))
 
     if crop is not None:
-        amp = amp[crop[0]:crop[1], crop[2]:crop[3]]
+        # print("Crop to {}:{}[y] {}:{}[x]".format(crop[2], crop[3], crop[0], crop[1]))
+        amp = amp[crop[2]:crop[3], crop[0]:crop[1]]
 
-    output_path_log = os.path.join(geotiff_dir, '{}_log.tif'.format(os.path.basename(input_file)))    
-    amp[amp>0] = np.log(amp[amp>0])
+    output_path_log = os.path.join(geotiff_dir, '{}_log.tif'.format(os.path.basename(input_file)))
+
+    if mode == 'rescale_intensity':
+        p2, p98 = np.nanpercentile(amp, (2, 98))
+        amp = exposure.rescale_intensity(amp, in_range=(p2, p98))
+    elif mode == 'equalize_hist':
+        amp = exposure.equalize_hist(amp)
+    elif mode =='equalize_adapthist':
+        data = data / np.nanmax(data)
+        amp = exposure.equalize_adapthist(amp, clip_limit=0.03)
+    elif mode == 'entropy':
+        data = data / np.nanmax(data)
+        data = entropy(data, disk(3))
+    elif mode == 'log':
+        amp[amp>0] = np.log(amp[amp>0])
+    else:
+        pass
 
     save_to_file(amp, output_path_log)
     print('Done processing: {}'.format(filename))
+
     
 
 def get_img_dimensions(input_file):
@@ -71,7 +92,7 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
     if crop is None:
         ncol, nrow = img_dim[0], img_dim[1]
     else:
-        ncol, nrow = crop[3] - crop[2], crop[1] - crop[0]
+        ncol, nrow = crop[1] - crop[0], crop[3] - crop[2]
     stack, sigma, weight = np.zeros((nrow, ncol)), np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
     stack_norm, sigma_norm = np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
 
@@ -112,7 +133,7 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
     save_to_file(sigma_norm, os.path.join(geotiff_dir, 'AMPLI_SIGMA_NORM.tif'))
 
 
-def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None):
+def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):
     for f in os.listdir(input_path):
         if(os.path.splitext(f)[1] == '.mod'):
             img_dims = get_img_dimensions(os.path.join(input_path, f))
@@ -126,6 +147,14 @@ def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None):
     nrow_max = all_file_df['nrow'].value_counts().idxmax()
     
     IMG_DIM = (int(ncol_max), int(nrow_max))
+    print("X;Y: {};{}".format(IMG_DIM[0], IMG_DIM[1]))
+    if crop is not None:
+        print("crop x: {}:{}".format(crop[0], crop[1]))
+        print("crop y: {}:{}".format(crop[2], crop[3]))
+        if crop[0] > IMG_DIM[0] or crop[1] > IMG_DIM[0]:
+            raise ValueError("crop exceeding x dim")
+        if crop[2] > IMG_DIM[1] or crop[3] > IMG_DIM[1]:
+            raise ValueError("crop exceeding x dim")
     
     ncol_differences = all_file_df.index[all_file_df['ncol'] != ncol_max]
     nrow_differences = all_file_df.index[all_file_df['nrow'] != nrow_max]
@@ -149,7 +178,7 @@ def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None):
                     continue
                 else:
                     print('Start processing: {}'.format(f))
-                    convert_single_file(os.path.join(input_path, f), IMG_DIM, crop=crop)
+                    convert_single_file(os.path.join(input_path, f), IMG_DIM, crop=crop, mode=mode)
 
 
     # process AMPLI_STACK_SIGMA each time to always include all images
@@ -185,6 +214,9 @@ if __name__ == "__main__":
 
     force = arguments['--f']
     s1 = arguments['--s1']
+    mode = arguments["--mode"]
+    if mode is None:
+        mode = 'log'
 
     geotiff_dir = os.path.join(input_path, 'GEOTIFF')
 
@@ -194,4 +226,4 @@ if __name__ == "__main__":
     # create GEOTIFF directory
     Path(geotiff_dir).mkdir(parents=True, exist_ok=True)
 
-    convert_all(input_path, all_file_df, geotiff_dir, s1)
+    convert_all(input_path, all_file_df, geotiff_dir, s1, mode=mode)

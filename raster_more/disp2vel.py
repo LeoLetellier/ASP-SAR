@@ -66,6 +66,8 @@ if __name__ == "__main__":
     flip = arguments["--flip"]
     if res is not None:
         res = float(res)
+    else:
+        res = 1
     time = float(time)
     if band is not None:
         band = int(band)

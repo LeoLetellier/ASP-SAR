@@ -63,6 +63,7 @@ def link_files(data_path_list, dst_path):
 
 def save_az_range_sampling(data_path_list, correl_path):
     """Fetch the pixel dimension and save it to file"""
+    print(data_path_list)
     result_dir = os.path.dirname(os.path.dirname(data_path_list[0]))
     insar_param_file = os.path.join(result_dir, 'TextFiles', 'InSARParameters.txt')
     with open(insar_param_file, 'r') as f:
