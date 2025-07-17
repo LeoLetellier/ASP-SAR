@@ -113,10 +113,14 @@ def resolve_format(infile):
 
     maybe_real4_param = os.path.join(os.path.dirname(infile), "lect.in")
     maybe_amster_param = os.path.join(os.path.dirname(os.path.dirname(infile)), "TextFiles", "InSARParameters.txt")
+    maybe_hdr = os.path.splitext(infile)[0] + '.hdr'
     has_real4_param = os.path.isfile(maybe_real4_param)
     has_amster_param = os.path.isfile(maybe_amster_param)
+    has_hdr = os.path.isfile(maybe_hdr)
     
-    if file_format == 'REAL4' or (file_format is None and has_real4_param):
+    if has_hdr:
+        return 'GDAL', None
+    elif file_format == 'REAL4' or (file_format is None and has_real4_param):
         return 'REAL4', maybe_real4_param
     elif file_format == 'AMSTER' or (file_format is None and has_amster_param):
         return 'AMSTER', maybe_amster_param
@@ -251,7 +255,7 @@ def open_band_amster(file, params, crop):
     data_type = np.float32
 
     if crop is not None:
-        pass # TODO implement crop
+        data[0] = data[0][crop[2]:crop[3], crop[0]:crop[1]]
 
     return data, driver, x_dim, y_dim, band_nb, data_type
 
@@ -429,23 +433,34 @@ def display_raster_format(infile, driver, x, y, b, dtype):
 
 
 def display_stats(data, zoom):
-    from scipy.stats import describe
+    from scipy.stats import describe, mode
 
     print()
     print("> Stats")
-    print("\tMain: ", end='')
-    print(describe(data[0], axis=None, nan_policy="omit"))
-    print("median:", np.nanmedian(data[0]))
+    print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
+    print("Main:")
+    desc = describe(data[0], axis=None, nan_policy="omit")
+    med = np.nanmedian(data[0])
+    nb_values = data[0].shape[0] * data[0].shape[1]
+    nb_nans = np.count_nonzero(np.isnan(data[0]))
+    print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
 
     if len(data) > 1:
-        print("\tSecondary: ", end='')
-        print(describe(data[1], axis=None, nan_policy="omit"))
-        print("median:", np.nanmedian(data[1]))
+        print("Secondary: ")
+        desc = describe(data[1], axis=None, nan_policy="omit")
+        med = np.nanmedian(data[1])
+        nb_values = data[1].shape[0] * data[1].shape[1]
+        nb_nans = np.count_nonzero(np.isnan(data[1]))
+        print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
     
     if zoom is not None:
-        print("\tZoom: ", end='')
-        print(describe(data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]], axis=None, nan_policy="omit"))
-        print("median:", np.nanmedian(data[0][zoom[2]:zoom[3], zoom[0]:zoom[1]]))
+        print("Zoom: ")
+        zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
+        desc = describe(zdata, axis=None, nan_policy="omit")
+        med = np.nanmedian(zdata)
+        nb_values = zdata.shape[0] * zdata.shape[1]
+        nb_nans = np.count_nonzero(np.isnan(zdata))
+        print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
     
 
 if __name__ == "__main__":
