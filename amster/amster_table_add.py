@@ -25,7 +25,7 @@ def fetch_baselines(all_pairs, date1, date2):
 
 
 def append_table(table, date1, date2, bp, bt):
-    new_line = f"{date1}\t{date2}\t{bp}\t\t{bt}"
+    new_line = f"\n{date1}\t{date2}\t{bp}\t\t{bt}"
     print("adding:\t", new_line)
     with open(table, 'a') as t:
         t.write(new_line)

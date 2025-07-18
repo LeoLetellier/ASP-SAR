@@ -115,12 +115,16 @@ def resolve_format(infile):
     maybe_real4_param = os.path.join(os.path.dirname(infile), "lect.in")
     maybe_amster_param = os.path.join(os.path.dirname(os.path.dirname(infile)), "TextFiles", "InSARParameters.txt")
     maybe_hdr = os.path.splitext(infile)[0] + '.hdr'
+    maybe_rsc = infile + '.rsc'
     has_real4_param = os.path.isfile(maybe_real4_param)
     has_amster_param = os.path.isfile(maybe_amster_param)
     has_hdr = os.path.isfile(maybe_hdr)
+    has_rsc = os.path.isfile(maybe_rsc)
     
     if has_hdr:
         return 'GDAL', None
+    elif file_format == 'REAL4' or (file_format is None and has_rsc):
+        return 'REAL4', maybe_rsc
     elif file_format == 'REAL4' or (file_format is None and has_real4_param):
         return 'REAL4', maybe_real4_param
     elif file_format == 'AMSTER' or (file_format is None and has_amster_param):
@@ -133,8 +137,6 @@ def resolve_format(infile):
     try:
         gdal.Open(infile)
     except:
-        if has_amster_param:
-            return 'AMSTER', maybe_amster_param
         raise ValueError('Unsupported file')
     return 'GDAL', None
 

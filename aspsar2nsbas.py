@@ -15,7 +15,14 @@ Options:
 
 """
 
+import docopt
+
+from workflow.prepare_result_export import *
+from workflow.prepare_nsbas_process import *
+
+
 if __name__ == "__main__":
+    arguments = docopt.docopt(__doc__)
     pass
 
     #prepare_result_export

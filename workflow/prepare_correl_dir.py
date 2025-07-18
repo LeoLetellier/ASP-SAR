@@ -84,7 +84,7 @@ def save_az_range_sampling(data_path_list, correl_path):
 
 
 if __name__ == "__main__":
-    from init_asp_parameters import init_asp_parameters 
+    # from init_asp_parameters import init_asp_parameters 
     arguments = docopt.docopt(__doc__)
 
     # path to data processed with MasTer
@@ -108,6 +108,6 @@ if __name__ == "__main__":
         correl_path = os.path.join(dst_path, 'CORREL')
     
         # save asp_parameters and sampling in destination directory instead of CORREL
-        init_asp_parameters(dst_path)
+        # init_asp_parameters(dst_path)
 
         save_az_range_sampling(data_path_list, dst_path)

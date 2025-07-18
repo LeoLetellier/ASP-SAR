@@ -31,10 +31,15 @@ from skimage.filters.rank import entropy
 from skimage.morphology import disk
 
 
-def save_to_file(data, output_path):
+def save_to_file(data, output_path, crop=None, ndv=9999):
     drv = gdal.GetDriverByName('GTiff')
-    dst_ds = drv.Create(output_path, data.shape[1], data.shape[0], 1, gdal.GDT_Float32)
-    dst_band = dst_ds.GetRasterBand(1)
+    ds = drv.Create(output_path, data.shape[1], data.shape[0], 1, gdal.GDT_Float32)
+    dst_band = ds.GetRasterBand(1)
+    if crop is not None:
+        _, xres, xrot, _, yrot, yres = ds.GetGeoTransform()
+        xul = crop[0]
+        yul = crop[3]
+        ds.SetGeoTransform((xul, 1, xrot, yul, yrot, -1))
     dst_band.WriteArray(data)
 
 
@@ -69,7 +74,7 @@ def convert_single_file(input_file, img_dim, crop=None, mode='log'):
     else:
         pass
 
-    save_to_file(amp, output_path_log)
+    save_to_file(amp, output_path_log, crop=crop)
     print('Done processing: {}'.format(filename))
 
     
@@ -125,12 +130,12 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
     stack_norm[weight > 0] = stack_norm[weight > 0] / weight[weight > 0]
     sigma_norm[weight > 0] = np.sqrt(sigma_norm[weight > 0] / weight[weight > 0] - stack_norm[weight > 0]**2)
 
-    save_to_file(stack, os.path.join(geotiff_dir, 'AMPLI_MEAN.tif'))
-    save_to_file(sigma, os.path.join(geotiff_dir, 'AMPLI_SIGMA.tif'))
-    save_to_file(da, os.path.join(geotiff_dir, 'AMPLI_dSIMGA.tif'))
+    save_to_file(stack, os.path.join(geotiff_dir, 'AMPLI_MEAN.tif'), crop=crop)
+    save_to_file(sigma, os.path.join(geotiff_dir, 'AMPLI_SIGMA.tif'), crop=crop)
+    save_to_file(da, os.path.join(geotiff_dir, 'AMPLI_dSIMGA.tif'), crop=crop)
 
-    save_to_file(stack_norm, os.path.join(geotiff_dir, 'AMPLI_MEAN_NORM.tif'))
-    save_to_file(sigma_norm, os.path.join(geotiff_dir, 'AMPLI_SIGMA_NORM.tif'))
+    save_to_file(stack_norm, os.path.join(geotiff_dir, 'AMPLI_MEAN_NORM.tif'), crop=crop)
+    save_to_file(sigma_norm, os.path.join(geotiff_dir, 'AMPLI_SIGMA_NORM.tif'), crop=crop)
 
 
 def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):

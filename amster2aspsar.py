@@ -17,9 +17,9 @@ Options:
 
 """
 
-from check_all2gif import check_for_empty_files
-from prepare_correl_dir import prepare_dir_list, link_files, save_az_range_sampling
-from convert_geotiff import convert_all
+from workflow.check_all2gif import check_for_empty_files
+from workflow.prepare_correl_dir import prepare_dir_list, link_files, save_az_range_sampling
+from workflow.convert_geotiff import convert_all
 
 import os
 import docopt

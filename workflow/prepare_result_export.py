@@ -36,8 +36,8 @@ def read_from_file(input_file, n_band):
 
 def save_to_file(data, output_path, ncol, nrow):
     drv = gdal.GetDriverByName('GTiff')
-    dst_ds = drv.Create(output_path, ncol, nrow, 1, gdal.GDT_Float32)
-    dst_band = dst_ds.GetRasterBand(1)
+    ds = drv.Create(output_path, ncol, nrow, 1, gdal.GDT_Float32)
+    dst_band = ds.GetRasterBand(1)
     dst_band.WriteArray(data)
 
 
