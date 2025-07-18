@@ -17,14 +17,15 @@ rplot.py
 -------------
 Display and Cut image file (.unw/.int/.r4/.tiff)
 
-Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
+Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] [--gdal]\
 [--lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] \
-[--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save | -s] [--ndv=<ndv>] [--stats]
+[--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats]
 
 
 Options:
 -h --help               Show this screen.
-<infile>                Raster to be displayed 
+<infile>                Raster to be displayed
+--gdal                  Force the openning with GDAL (ignore possible parameter files)
 --crop=<crop>           Crop option ("xmin,xmax,ymin,ymax")
 --cpt=<cpt>             Indicate colorscale for phase
 --wrap=<wrap>           Wrapped phase between value for unwrapped files 
@@ -43,14 +44,14 @@ Options:
 --zoom=<zoom>           Additionnaly display a zoom of the raster ("xmin,xmax,ymin,ymax")
 --histo                 Additionnaly display the raster histogram
 --stats                 Display the raster and zoom statistics
---save -s               Save the display to pdf
+--save                  Save the display to pdf
 """
 
 print()
 print()
 print('Author: Simon Daout')
 print()
-print('revised version June 2025 (Leo Letellier)')
+print('revised version July 2025 (Leo Letellier)')
 print()
 
 try:
@@ -433,9 +434,8 @@ def display_raster_format(infile, driver, x, y, b, dtype):
 
 
 def display_stats(data, zoom):
-    from scipy.stats import describe, mode
-
-    print()
+    from scipy.stats import describe
+    
     print("> Stats")
     print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
     print("Main:")
@@ -476,7 +476,10 @@ if __name__ == "__main__":
     
     roicube = False
 
-    if arguments["--lectfile"] is not None:
+    if arguments["--gdal"]:
+        file_format = 'GDAL'
+        param_file = None
+    elif arguments["--lectfile"] is not None:
         file_format = 'REAL4'
         param_file = arguments["--lectfile"]
     elif arguments["--lectcube"] is not None:
