@@ -8,9 +8,13 @@ Usage: amster_table_add.py <dates>... [--table=<table>] [--all-pairs=<all-pairs>
 
 Options:
 -h | --help         Show this screen
+<dates>             Pair dates to append to the table. Dates sould be provided like 'd1-d2 d3-d4 d6-d5 ...'
+--table             The pair table containing the two dates and the perpendicular and temporal baselines
+--all-pairs         The allPairsListing file containing the baselines data for all possible pairs
 """
 
 import docopt
+import os
 import numpy as np
 
 
@@ -41,13 +45,17 @@ if __name__ == "__main__":
 
     dates = arguments["<dates>"]
     table = arguments["--table"]
-    all = arguments["--all-pairs"]
+    all_pairs = arguments["--all-pairs"]
 
     dates = [d.split('-', 2) for d in dates]
     
     if table is None:
         table = "table_pairs.txt"
-    if all is None:
-        all = "allPairsListing.txt"
+    if all_pairs is None:
+        all_pairs = "allPairsListing.txt"
+    if not os.path.isfile(table):
+        raise FileNotFoundError('Table file not found ({})'.format(table))
+    if not os.path.isfile(all_pairs):
+        raise FileNotFoundError('allPairsListing file not found ({})'.format(all_pairs))
     
-    add_dates(dates, table, all)
+    add_dates(dates, table, all_pairs)
