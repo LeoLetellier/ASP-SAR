@@ -17,22 +17,24 @@ rplot.py
 -------------
 Display and Cut image file (.unw/.int/.r4/.tiff)
 
-Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] [--gdal]\
-[--lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] \
-[--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats]
+Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
+[--dim=<dim> | --gdal | --lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] \
+[--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
+[--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats]
 
 
 Options:
 -h --help               Show this screen.
 <infile>                Raster to be displayed
---gdal                  Force the openning with GDAL (ignore possible parameter files)
---crop=<crop>           Crop option ("xmin,xmax,ymin,ymax")
---cpt=<cpt>             Indicate colorscale for phase
---wrap=<wrap>           Wrapped phase between value for unwrapped files 
+--dim=<dim>             Indicate the raster's dimension (x,y or x,y,band)
+--gdal                  Force the openning with GDAL
 --lectfile=<lectfile>   Path of the lect.in file for r4 format
 --lectcube=<lectcube>   Path to lect.in file containing band metadata
 --parfile=<parfile>     Path of the .par file of GAMMA
 --amfile=<amfile>       Path of the AMSTer InsarParameter file
+--crop=<crop>           Crop option ("xmin,xmax,ymin,ymax")
+--cpt=<cpt>             Indicate colorscale for phase
+--wrap=<wrap>           Wrapped phase between value for unwrapped files 
 --rad2mm=<rad2mm>       Convert data [default: 1]
 --title=<title>         Title plot 
 --band=<band>           Select band number [default: 1] 
@@ -166,21 +168,29 @@ def open_band_real4(file, band, params, crop, cube):
     """Open as REAL4 raster"""
     fid = open(file, 'r')
     if cube:
-        x_dim, y_dim, band_nb = list(map(int, open(params).readline().split(None, 3)[0:3]))
-        phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim * band_nb].reshape((y_dim, x_dim, band_nb))
-        phase = phase[:, :, band - 1]
+        if type(param_file) is list:
+            x_dim, y_dim, band_nb = param_file
+        else:
+            x_dim, y_dim, band_nb = list(map(int, open(params).readline().split(None, 3)[0:3]))
     else:
-        if os.path.splitext(params)[1] == '.rsc':
+        band_nb = 1
+        if type(param_file) is not str:
+            x_dim, y_dim = param_file[:2]
+        elif os.path.splitext(params)[1] == '.rsc':
             lines = open(params).read().strip().split('\n')
+            x_dim, y_dim = None, None
             for l in lines:
                 if 'WIDTH' in l:
                     x_dim = int(''.join(filter(str.isdigit, l)))
                 elif 'FILE_LENGTH' in l:
                     y_dim = int(''.join(filter(str.isdigit, l)))
+                if x_dim is not None and y_dim is not None:
+                    break
         else:
             x_dim, y_dim = list(map(int, open(params).readline().split(None, 2)[0:2]))
-        phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim].reshape((y_dim, x_dim))
-        band_nb = 1
+    
+    phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim * band_nb].reshape((y_dim, x_dim, band_nb))
+    phase = phase[:, :, band - 1]
 
     if crop is not None:
         phase = phase[crop[2]:crop[3], crop[0]:crop[1]]
@@ -478,7 +488,12 @@ if __name__ == "__main__":
     
     roicube = False
 
-    if arguments["--gdal"]:
+    if arguments["--dim"] is not None:
+        file_format = 'REAL4'
+        param_file = [int(d) for d in arguments["--dim"].split(',', 3)]
+        if len(param_file) == 2:
+            param_file.append(1)
+    elif arguments["--gdal"]:
         file_format = 'GDAL'
         param_file = None
     elif arguments["--lectfile"] is not None:
@@ -498,8 +513,9 @@ if __name__ == "__main__":
         file_format = None
         param_file = None
 
-    if param_file is not None and not os.path.isfile(param_file):
-        raise FileNotFoundError("No such parameter file: {}".format(param_file))
+    if type(param_file) is not list:
+        if param_file is not None and not os.path.isfile(param_file):
+            raise FileNotFoundError("No such parameter file: {}".format(param_file))
 
     if file_format is None:
         file_format, param_file = resolve_format(infile)
