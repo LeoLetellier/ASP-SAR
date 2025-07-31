@@ -3,28 +3,34 @@
 Processing tool package written in bash and python for image correlation of coregistered SAR images using the AMES stereo toolbox (https://stereopipeline.readthedocs.io/en/latest/). The coregistration is done using the AMSTer toolbox(https://github.com/AMSTerUsers/AMSTer_Distribution/).\
 The processing chain additionally compute the time series analysis with NSBAS .
 
-![Alt text](logo-pnts.jpg)
+![PNTS logo](logo-pnts.jpg)
 
-# To download the package
+# Workflow
 
-# Installation
-
-# How to use it
-# AMSTer Toolbox coregistration
-1. Coregister SAR images using ALL2GIF.sh of AMSTer toolbox
+1. AMSTer Coregistration
 
 ```bash
-ALL2GIF.sh 20220723 /path-to-LaunchParam.txt 100 100
+ALL2GIF.sh YYYYMMDD /full-path-to-LaunchParam.txt 100 100
 ```
 
-2. Prepare list pair table for correlation:
+Launch command in AMSTer/SAR_CSL folder, coregistrated images stored in AMSTer/SAR_SM/AMPLITUDE folder.
+
+2. Initialize ASP-SAR
 
 ```bash
-lns_All_Img.sh /data/processing/AMSTer/SAR_CSL/TSX/Nepal_Desc_105/Crop_MATHILO_28.44-28.38_84.38-84.44 /data/processing/ASP-SAR/nepal/TSX/Nepal_Desc_105
+amster2aspsar.py /full-path/AMSTer/SAR_SM/AMPLITUDES/SAT/TRK/REGION /ASP-SAR/working-dir [--s1]
+```
+
+3. Generate pair network
+
+For example, in /ASP-SAR/working-dir/PAIRS
+
+```bash
+lns_All_Img.sh CSL-dir pair-dir
 ```
 
 ```bash
-Prepa_MSBAS.sh /data/processing/ASP-SAR/nepal/TSX/Nepal_Desc_105 300 120 20230506
+Prepa_MSBAS.sh pair-dir Bpmax Btmax
 ```
 
 Eventually use Delaunay triangulation:
@@ -33,39 +39,68 @@ Eventually use Delaunay triangulation:
 DelaunayTable.sh -Ratio=r -BpMax=bp -BtMax=bt
 ```
 
-# Correlations with ASP Toolbox
-3. Initialize the AMSTer link with asp-sar
+You can copy your table of choice as table_pairs.txt.
+
+Display the network:
+````bash
+amster_plot_network.py table.txt
+````
+
+Add a new pair to the table:
+````bash
+amster_table_add.py table.txt d1-d2 d2-d3 ...
+````
+
+Remove a pair from the table:
+
+* Open the table in VI
+* Cursor on the line to delete and `dd`
+
+
+4. Image Correlation using ASP (through aspeo)
+
+Generate the parameter file:
 
 ```bash
-amster2aspsar.py --amster=/full-path/AMSTer/SAR_SM/AMPLITUDES/SAT/TRK/REGION --aspsar=/full-path/working-dir [--s1]
+aspeo new preset
 ```
 
-4. Use ASPeo (ASP workflow) for launching the correlation
+Update the parameters of interest
+
+Launch the stereo process:
 
 ```bash
-aspeo new aspsar_s1.toml
+aspeo pt aspeo.toml -v
 ```
+
+5. Export the results for NSBAS
 
 ```bash
-aspeo pt aspeo.toml
+aspsar2nsbas.py asp-sar-dir
 ```
 
-# Export and prepare for time series inversion
-5. Prepare for nsbas
+6. Run TS inversion in WORKING_DIR/NSBAS_PROCESS/MASKED/H|V
 
-```bash
-aspsar2nsbas.py
-```
+Update the parameters of inversion: `input_inv_send`
 
-6. Run inversion in WORKING_DIR/NSBAS_PROCESS/MASKED/H|V
+Launch the inversion:
 
 ```bash
 invers_pixel < input_inv_send
 ```
 
-# Geocoding of cube file or single NSBAS results
-7. retrieve geocoded results
+7. Geocode results
+
+You can create a GEOCODE directory to store geocoded results.
+
+Choose one of the date directory to host the geocoding steps and check the geocoding parameters in LaunchMTparams.txt.
+
+Note that the sm run must have corrected filepaths. Run `RenamePathAfterMove_in_SAR_SM_AMPLITUDES.sh SAT` if not the case.
 
 ```bash
-am_geocode.py --amster-dir=<amster-dir> --param=<param> --infile=<infile> --outdir=<outdir>
+am_geocode.py file --amster=sm/amplitude/trk/region/one-of-the-dates/ --outdir=../../GEOCODE/[HV]
 ```
+
+If conflicts of python version, you can run once `am_geocode`, then in the sm/amplitude/date dir run `ReGeocode_AmpliSeries.sh /full-path-to-params`, then run `am_geocode` again to get back the results.
+
+GDAL mutli-band rasters will be split by band. To reconstruct the cube, check `merge_star.py`.
