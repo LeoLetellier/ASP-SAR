@@ -29,6 +29,7 @@ import shutil
 from skimage import exposure
 from skimage.filters.rank import entropy
 from skimage.morphology import disk
+from tqdm import tqdm
 
 
 def save_to_file(data, output_path, crop=None, ndv=9999):
@@ -75,7 +76,7 @@ def convert_single_file(input_file, img_dim, crop=None, mode='log'):
         pass
 
     save_to_file(amp, output_path_log, crop=crop)
-    print('Done processing: {}'.format(filename))
+    # print('Done processing: {}'.format(filename))
 
     
 
@@ -101,12 +102,13 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
     stack, sigma, weight = np.zeros((nrow, ncol)), np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
     stack_norm, sigma_norm = np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
 
-    for f in os.listdir(geotiff_dir):
+    for f in tqdm(os.listdir(geotiff_dir)):
         if(f in corrupt_file_df['file'].values):
-            print('Skip: {}'.format(f))    
+            # print('Skip: {}'.format(f))    
+            pass
         else:
             if('.mod_log.tif' in f):
-                print('Start: {}'.format(f))
+                # print('Start: {}'.format(f))
                 ds = gdal.OpenEx(os.path.join(geotiff_dir, f), allowed_drivers=['GTiff'])
                 ds_band = ds.GetRasterBand(1)
                 amp = ds_band.ReadAsArray(0, 0, ds.RasterXSize, ds.RasterYSize)
@@ -120,7 +122,7 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
                 index = np.nonzero(amp)
                 w[index] = 1
                 weight = weight + w
-                print('Finished: {}'.format(f))
+                # print('Finished: {}'.format(f))
     
     stack[weight > 0] = stack[weight > 0] / weight[weight > 0]
     sigma[weight > 0] = np.sqrt(sigma[weight > 0] / weight[weight > 0] - (stack[weight > 0])**2)
@@ -180,6 +182,7 @@ def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):
             else:
                 # if file has different extent - skip
                 if(f in corrupt_file_df['file'].values):
+                    print('corrupt:', f)
                     continue
                 else:
                     print('Start processing: {}'.format(f))

@@ -34,14 +34,27 @@ def read_from_file(input_file, n_band):
     return (raw_disparity, ncol, nrow)
 
 
-def save_to_file(data, output_path, ncol, nrow):
-    drv = gdal.GetDriverByName('GTiff')
-    ds = drv.Create(output_path, ncol, nrow, 1, gdal.GDT_Float32)
-    dst_band = ds.GetRasterBand(1)
-    dst_band.WriteArray(data)
+def save_to_file(data, output_path, ncol, nrow, gdal=True):
+    if gdal:
+        drv = gdal.GetDriverByName('GTiff')
+        ds = drv.Create(output_path, ncol, nrow, 1, gdal.GDT_Float32)
+        dst_band = ds.GetRasterBand(1)
+        dst_band.WriteArray(data)
+    else:
+        with open(output_path, 'wb') as outfile:
+            data.flatten().astype('float32').tofile(outfile)
+        out_rsc = os.path.join(output_path + '.rsc')
+        with open(out_rsc, "w") as rsc_file:
+            rsc_file.write("""\
+WIDTH                 %d
+FILE_LENGTH           %d
+XMIN                  0
+XMAX                  %d
+YMIN                  0
+YMAX                  %d""" % (ncol, nrow, ncol-1, nrow-1))
 
 
-def subtract_median(input_file, output_path, n_band, sampling):
+def subtract_median(input_file, output_path, n_band, sampling, gdal=False):
     # img_data = (raw_disparity, ncol, nrow)
     img_data = read_from_file(input_file, n_band)
     raw_disparity, ncol, nrow = img_data[0], img_data[1], img_data[2]
@@ -50,15 +63,15 @@ def subtract_median(input_file, output_path, n_band, sampling):
     adj_disparity = np.zeros((nrow, ncol))
     adj_disparity = (raw_disparity - median) * sampling
     # add conversion from pixel to m displacement here
-    save_to_file(adj_disparity, output_path, ncol, nrow)
+    save_to_file(adj_disparity, output_path, ncol, nrow, gdal=gdal)
 
 
-def get_cc_map(input_file, output_path, n_band):
+def get_cc_map(input_file, output_path, n_band, gdal=False):
     # img_data = (correlation coefficient, ncol, nrow)
     img_data = read_from_file(input_file, n_band)
     cc, ncol, nrow = img_data[0], img_data[1], img_data[2]
 
-    save_to_file(cc, output_path, ncol, nrow)
+    save_to_file(cc, output_path, ncol, nrow, gdal=gdal)
 
 
 def generate_input_inv_send(out_dir):
@@ -158,7 +171,7 @@ def get_date_list(pair_list, out_dir):
     """creates txt file in work_dir/NSBAS/date_list.txt"""
     dates = []
     for p in pair_list:
-        #print(str(p))
+        print(' >> >> >>',p)
         dates.append(p.split('_')[0])
         dates.append(p.split('_')[1])
 
@@ -169,7 +182,7 @@ def get_date_list(pair_list, out_dir):
             f.write('{}\n'.format(d))
 
 
-def prepare_NSBAS(data_dir, masked):
+def prepare_NSBAS(data_dir, masked=False):
     # to only get unique values (bc for each pair 2 files(V&H)) - transform to set
     pair_set = set([d.split('-')[0] for d in os.listdir(data_dir)])
     # convert to list to keep list data type
@@ -197,77 +210,9 @@ def prepare_NSBAS(data_dir, masked):
     generate_input_inv_send(out_dir)
 
     get_date_list(pair_list, out_dir)
-    
-
-if __name__ == "__main__":
-    arguments = docopt.docopt(__doc__)
-
-    # work_dir is data_dir from before, because everything is in one directory
-    work_dir = arguments['--data']
-
-    # check for force recomputation - will remove current EXPORT/ADJUSTED, /NSBAS, /RAW directory 
-    force = arguments['--f']
-
-    # check if masked option is set - will use masked files as input
-    masked = arguments['--masked']
-
-    # correl_dir is like working_dir, all the processing results are stored in data_dir/CORREL
-    correl_dir = os.path.join(work_dir, 'STEREO')
-
-    # get azimuth and slant range sampling for pixel to m conversion
-    sampling_file = os.path.join(work_dir, 'sampling.txt')
-    sampling = pd.read_csv(sampling_file, sep='\t')
-    az_sampl, range_sampl = sampling['AZ'][0], sampling['SR'][0]
-
-    # prepare directories
-    exp_dir = os.path.join(work_dir, 'EXPORT')
-    Path(exp_dir).mkdir(parents=True, exist_ok=True)
-
-    raw_dir = os.path.join(exp_dir, 'RAW')
-    adj_dir = os.path.join(exp_dir, 'ADJUSTED')
-    nsbas_dir = os.path.join(exp_dir, 'NSBAS')
-
-    cc_dir = os.path.join(exp_dir, 'CC')
-
-    if(force):
-        print('FORCE RECOMPUTATION: REMOVE EXPORT/ADJUSTED, EXPORT/NSBAS, EXPORT/RAW, EXPORT/CC')
-        shutil.rmtree(raw_dir)
-        shutil.rmtree(adj_dir)
-        shutil.rmtree(nsbas_dir)
-        shutil.rmtree(cc_dir)
-        
-    # check and create subdirectories
-    Path(raw_dir).mkdir(parents=True, exist_ok=True)
-    Path(adj_dir).mkdir(parents=True, exist_ok=True)
-
-    Path(nsbas_dir).mkdir(parents=True, exist_ok=True)
-    Path(os.path.join(nsbas_dir, 'H')).mkdir(parents=True, exist_ok=True)
-    Path(os.path.join(nsbas_dir, 'V')).mkdir(parents=True, exist_ok=True)
-
-    # prepare the masked results in NSBAS/MASKED/H||V
-    if(masked):
-        masked_nsbas_dir = os.path.join(nsbas_dir, 'MASKED')
-        Path(masked_nsbas_dir).mkdir(parents=True, exist_ok=True)
-        Path(os.path.join(masked_nsbas_dir, 'H')).mkdir(parents=True, exist_ok=True)
-        Path(os.path.join(masked_nsbas_dir, 'V')).mkdir(parents=True, exist_ok=True)
 
 
-    Path(cc_dir).mkdir(parents=True, exist_ok=True)
-
-    if(masked):
-        masked_input_dir = os.path.join(exp_dir, 'MASKED')
-        if(not os.path.exists(masked_input_dir) or len(os.listdir(masked_input_dir)) <= 2):
-            print('EXPORT/MASKED is not existing/empty, run utils/mask_correl_results_cc.py')
-        else:
-            print('EXPORT/MASKED exists, can start processing')
-
-    # get list of only DATE1_DATE2 directories
-    dir_list=[os.path.join(correl_dir, d) for d in os.listdir(correl_dir) if len(d) == 17]
-
-    print('##################################')
-    print('PROCESS AND COPY DISPARITY MAPS')
-    print('##################################')
-
+def copy_disparity(dir_list, adj_dir, cc_dir, raw_dir, correl_dir, range_sampl, az_sampl):
     for i, d in enumerate(dir_list):
         print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
         curr_pair = os.path.basename(d)
@@ -294,7 +239,7 @@ if __name__ == "__main__":
             else:
                 # gets the 3rd band from correl-F.tif which contains correlation coeffiecent map
                 get_cc_map(cc_path, os.path.join(cc_dir, '{}_NCC.tif'.format(curr_pair)), 1)
-
+ 
             # instead of copying, just link raw data to save space (maybe remove later)
             #shutil.copy(h_path, os.path.join(raw_dir, '{}-F-H.tif'.format(curr_pair)))
             #shutil.copy(v_path, os.path.join(raw_dir, '{}-F-V.tif'.format(curr_pair)))
@@ -316,6 +261,82 @@ if __name__ == "__main__":
             else:    
                 with open(missing_correl_file, 'w') as miss_file:
                     miss_file.write('{}\t{}\n'.format(curr_pair.split('_')[0], curr_pair.split('_')[1]))
+    
+
+if __name__ == "__main__":
+    arguments = docopt.docopt(__doc__)
+
+    # work_dir is data_dir from before, because everything is in one directory
+    work_dir = arguments['--data']
+
+    # check for force recomputation - will remove current EXPORT/ADJUSTED, /NSBAS, /RAW directory 
+    force = arguments['--f']
+
+    # check if masked option is set - will use masked files as input
+    masked = arguments['--masked']
+
+    # correl_dir is like working_dir, all the processing results are stored in data_dir/CORREL
+    correl_dir = os.path.join(work_dir, 'STEREO')
+
+    # get azimuth and slant range sampling for pixel to m conversion
+    sampling_file = os.path.join(work_dir, 'sampling.txt')
+    sampling = pd.read_csv(sampling_file, sep='\t')
+    az_sampl, range_sampl = sampling['AZ'][0], sampling['SR'][0]
+
+    # prepare directories
+    exp_dir = os.path.join(work_dir, 'EXPORT')
+    Path(exp_dir).mkdir(parents=True, exist_ok=True)
+
+    h_dir = os.path.join(exp_dir, 'H')
+    v_dir = os.path.join(exp_dir, 'V')
+    ncc_dir = os.path.join(exp_dir, 'NCC')
+    raw_dir = os.path.join(exp_dir, 'RAW')
+    adj_dir = os.path.join(exp_dir, 'ADJUSTED')
+    nsbas_dir = os.path.join(exp_dir, 'NSBAS')
+
+    cc_dir = os.path.join(exp_dir, 'CC')
+
+    if(force):
+        print('FORCE RECOMPUTATION: REMOVE EXPORT/ADJUSTED, EXPORT/NSBAS, EXPORT/RAW, EXPORT/CC')
+        shutil.rmtree(h_dir)
+        shutil.rmtree(v_dir)
+        shutil.rmtree(nsbas_dir)
+        shutil.rmtree(ncc_dir)
+        
+    # check and create subdirectories
+    Path(h_dir).mkdir(parents=True, exist_ok=True)
+    Path(v_dir).mkdir(parents=True, exist_ok=True)
+
+    Path(nsbas_dir).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join(nsbas_dir, 'H')).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join(nsbas_dir, 'V')).mkdir(parents=True, exist_ok=True)
+    Path(os.path.join(nsbas_dir, 'NCC')).mkdir(parents=True, exist_ok=True)
+
+    # prepare the masked results in NSBAS/MASKED/H||V
+    if(masked):
+        masked_nsbas_dir = os.path.join(nsbas_dir, 'MASKED')
+        Path(masked_nsbas_dir).mkdir(parents=True, exist_ok=True)
+        Path(os.path.join(masked_nsbas_dir, 'H')).mkdir(parents=True, exist_ok=True)
+        Path(os.path.join(masked_nsbas_dir, 'V')).mkdir(parents=True, exist_ok=True)
+
+
+    Path(ncc_dir).mkdir(parents=True, exist_ok=True)
+
+    if(masked):
+        masked_input_dir = os.path.join(exp_dir, 'MASKED')
+        if(not os.path.exists(masked_input_dir) or len(os.listdir(masked_input_dir)) <= 2):
+            print('EXPORT/MASKED is not existing/empty, run utils/mask_correl_results_cc.py')
+        else:
+            print('EXPORT/MASKED exists, can start processing')
+
+    # get list of only DATE1_DATE2 directories
+    dir_list=[os.path.join(correl_dir, d) for d in os.listdir(correl_dir) if len(d) == 17]
+
+    print('##################################')
+    print('PROCESS AND COPY DISPARITY MAPS')
+    print('##################################')
+
+    copy_disparity(dir_list, adj_dir, cc_dir, raw_dir, correl_dir, range_sampl, az_sampl)
 
     # maybe add here masking based on CC_map - set input option to apply  optional 
 
@@ -329,3 +350,4 @@ if __name__ == "__main__":
         prepare_NSBAS(masked_input_dir, masked)
     else:
         prepare_NSBAS(adj_dir, masked)
+    

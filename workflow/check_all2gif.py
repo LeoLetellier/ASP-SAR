@@ -5,7 +5,7 @@ check_all2gif.py
 -----------
 Check the ALL2GIF.sh results before processing with ASP
 
-Usage: check_all2gif.py --check=<path>
+Usage: check_all2gif.py <all2gif>
 check_all2gif.py -h | --help
 
 Options:
@@ -19,8 +19,10 @@ import os
 import docopt
 
 
-def check_for_empty_files(all2gif_dir):
+def check_for_empty_files(all2gif_dir, do_print=False):
     out = []
+    refcol = None
+    refrow = None
     for d in os.listdir(all2gif_dir):
         if(os.path.isdir(os.path.join(all2gif_dir, d)) and d[0] == '2'):
             insar_param_file = os.path.join(all2gif_dir, d, 'i12', 'TextFiles', 'InSARParameters.txt')
@@ -31,16 +33,28 @@ def check_for_empty_files(all2gif_dir):
 
                 ncol, nrow = int(img_dim[0].strip()), int(img_dim[1].strip())
                 if ncol == 0 or nrow == 0:
+                    if do_print:
+                        print("empty:", d)
                     out += [d]
+                elif refcol is not None and refrow is not None:
+                    if ncol != refcol or nrow != refrow:
+                        if do_print:
+                            print('inconsistent size ({}, {}):'.format(ncol, nrow), d)
+                        out += [d]
+                else:
+                    refcol = ncol
+                    refrow = nrow
+                    if do_print:
+                        print("ref size is ({}, {})".format(ncol, nrow))
     return out
 
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
 
-    all2gif_dir = arguments["--check"]
+    all2gif_dir = arguments["<all2gif>"]
 
-    empty_files = check_for_empty_files(all2gif_dir)
+    empty_files = check_for_empty_files(all2gif_dir, do_print=True)
 
     if(not empty_files):
         print('Everything should be fine, can continue with process_stereo')

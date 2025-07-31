@@ -115,7 +115,7 @@ def generate_list_dates(process_orient_dir, date_list_file, pair_table):
     out_df.to_csv(os.path.join(process_orient_dir, 'list_dates'), sep=' ', header=False, index=False)
 
 
-def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation, pair_table, date_list_file, masked):
+def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation, pair_table, date_list_file, masked=False):
     # orientation is 'H' or 'V'
     # if masked data is used, nsbas_input_dir = NSBAS/MASKED
     # if masked data is used, nsbas_process_path = NSBAS_PROCESS/MASKED/H|V
@@ -138,6 +138,7 @@ def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation
     # get /EXPORT/NSBAS/orientation dir
     else:
         input_orient_dir = os.path.join(nsbas_input_dir, orientation)
+    input_cc = os.path.join(os.path.dirname(nsbas_input_dir), 'CC')
 
     # create NSBAS_PROCESS/orientation/LN_DATA dir
     ln_data_dir = os.path.join(process_orient_dir, 'LN_DATA')
@@ -148,6 +149,7 @@ def prepare_process_directories(nsbas_input_dir, nsbas_process_path, orientation
         # need to put string into specific format
         # is: DATE1-DATE2_DIRECTION.r4/.rsc; need: DATE1-DATE2.r4/.rsc
         # need to check extensions because otherwise -> two with same name
+        name = os.path.splitext(f)[0]
         if(len(f.split('.')) == 3):
             ext = '.r4.rsc'
         else:
@@ -183,20 +185,20 @@ if __name__ == "__main__":
         nsbas_process_dir = os.path.join(work_dir, 'NSBAS_PROCESS')
         Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
 
-    nsbas_input_dir = os.path.join(work_dir, 'EXPORT', 'NSBAS')
+    export_dir = os.path.join(work_dir, 'EXPORT', 'NSBAS')
 
     # TODO: check this part again - maybe give as parameter
     # correl_dir = os.path.join(work_dir, 'CORREL')
     # get table file -> must be th only table_[...].txt file
     pair_table = os.path.join(work_dir, "PAIRS", "table_pairs.txt")
     # pair_table = [os.path.join(correl_dir, f) for f in os.listdir(correl_dir) if os.path.isfile(os.path.join(work_dir, f)) and f.split('_')[0] == 'table'][0]
-    date_list_file = os.path.join(nsbas_input_dir, 'dates_list.txt')
+    date_list_file = os.path.join(export_dir, 'dates_list.txt')
 
 
     print('START PREPARING H DIRECTORY')
-    prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'H', pair_table, date_list_file, masked)
+    prepare_process_directories(export_dir, nsbas_process_dir, 'H', pair_table, date_list_file, masked)
     print('FINISHED H')
 
     print('START PREPARING V DIRECTORY')
-    prepare_process_directories(nsbas_input_dir, nsbas_process_dir, 'V', pair_table, date_list_file, masked)
+    prepare_process_directories(export_dir, nsbas_process_dir, 'V', pair_table, date_list_file, masked)
     print('FINISHED V')

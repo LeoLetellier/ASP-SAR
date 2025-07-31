@@ -5,7 +5,7 @@ amster2aspsar.py
 --------------
 Prepare the directory structure for further processing. Link all ALL2GIF results in the given destination dir.
 
-Usage: amster2aspsar.py --aspsar=<path> [--s1]
+Usage: amster2aspsar.py <aspsar> [--force]
 amster2aspsar.py -h | --help
 
 Options:
@@ -16,15 +16,140 @@ Options:
 """
 
 import docopt
+import os
+from os.path import join
+from pathlib import Path
+import shutil
 
 from workflow.prepare_result_export import *
 from workflow.prepare_nsbas_process import *
 
+DIRS = ['H', 'V', 'NCC']
+EXPORT = 'EXPORT'
+
+
+def check_dirs(path, force=False):
+    for d in DIRS:
+        cwd = join(path, EXPORT, d)
+        if force:
+            shutil.rmtree(cwd)
+        Path(cwd).mkdir(parents=True, exist_ok=True)
+
+
+def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl):
+    valid_pairs = []
+    
+    for i, d in enumerate(dir_list):
+        print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
+        curr_pair = os.path.basename(d)
+        disp_path = join(d, 'stereo-F.tif')
+        ncc_path = join(d, 'stereo-ncc.tif')
+
+        H_target = join(working_dir, EXPORT, 'H', 'H_{}.r4'.format(curr_pair))
+        V_target = join(working_dir, EXPORT, 'V', 'V_{}.r4'.format(curr_pair))
+        NCC_target = join(working_dir, EXPORT, 'NCC', 'NCC_{}.r4'.format(curr_pair))
+        
+        if(os.path.isfile(disp_path)):
+            if os.path.isfile(H_target):
+                    print('Skip {}, already exists'.format(H_target))
+            else:
+                subtract_median(disp_path, H_target, 1, rg_sampl, gdal=False)
+            
+            if os.path.isfile(V_target):
+                print('Skip {}, already exists'.format(V_target))
+            else:
+                subtract_median(disp_path, V_target, 2, az_sampl, gdal=False)
+            
+            if os.path.isfile(NCC_target):
+                print('Skip {}, already exists'.format(NCC_target))
+            else:
+                get_cc_map(ncc_path, NCC_target, 1, gdal=False)
+
+            print('Finished pair: {}'.format(os.path.basename(d)))
+            valid_pairs.append(os.path.basename(d))
+        else:
+            print('No correl-F.tif file found in {}'.format(curr_pair))
+            missing_correl_file = os.path.join(correl_dir, 'missing_correl_files.txt')
+            mode = 'a' if os.path.isfile(missing_correl_file) else 'w'
+            with open(missing_correl_file, mode) as miss_file:
+                miss_file.write('{}\t{}\n'.format(curr_pair.split('_')[0], curr_pair.split('_')[1]))
+    return valid_pairs
+
+
+def prepare_nsbas_dir(working_dir, nsbas_process_path, orientation, pair_table, date_list_file):
+    process_orient_dir = join(nsbas_process_path, orientation)
+    Path(process_orient_dir).mkdir(parents=True, exist_ok=True)
+    
+    generate_input_inv_send(process_orient_dir)
+    generate_list_pair(process_orient_dir, pair_table)
+    generate_list_dates(process_orient_dir, date_list_file, pair_table)
+
+
+    input_disp = join(working_dir, EXPORT, orientation)
+    input_ncc = join(working_dir, EXPORT, 'NCC')
+    
+    ln_data_dir = join(process_orient_dir, 'LN_DATA')
+    Path(ln_data_dir).mkdir(parents=True, exist_ok=True)
+    
+    for f in os.listdir(input_disp):
+        first_dot = f.find('.')
+        name, ext = f[:first_dot], f[first_dot:]
+        pair = "-".join(name.split('_')[1:])
+        pair_underscore = "_".join(name.split('_')[1:])
+        target_disp = join(ln_data_dir, '{}{}'.format(pair, ext))
+        target_ncc = join(ln_data_dir, '{}-CC{}'.format(pair, ext))
+        if not os.path.islink(target_disp):
+            os.symlink(join(input_disp, f), target_disp)
+            print('Linked: {} to {}'.format(join(input_disp, f), target_disp))
+        if not os.path.islink(target_ncc):
+            ncc_file = join(input_ncc, 'NCC_' + pair_underscore + ext)
+            os.symlink(ncc_file, target_ncc)
+            print('Linked: {} to {}'.format(ncc_file, target_ncc))
+
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
-    pass
+    work_dir = arguments['<aspsar>']
+    force = arguments['--force']
+    
+    correl_dir = join(work_dir, 'STEREO')
 
-    #prepare_result_export
-    #prepare_nsbas_process
-    #mask ?
+    sampling = pd.read_csv(join(work_dir, 'sampling.txt'), sep='\t')
+    az_sampl, range_sampl = sampling['AZ'][0], sampling['SR'][0]
+
+    # prepare directories
+    Path(join(work_dir, 'EXPORT')).mkdir(parents=True, exist_ok=True)
+
+    if(force):
+        print('FORCE RECOMPUTATION: REMOVE EXPORT DIRS')
+    check_dirs(work_dir, force=force)
+
+    # retrieve the dates folder YYYYMMDD_YYYYMMDD (17 chars)
+    dir_list=[join(correl_dir, d) for d in os.listdir(correl_dir) if len(d) == 17]
+
+    print('##################################')
+    print('PROCESS AND COPY DISPARITY MAPS')
+    print('##################################')
+
+    pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl)
+
+    print(">> >> PAIRS", pairs)
+
+    print('##################################')
+    print('PREPARE NSBAS')
+    print('##################################')
+
+    nsbas_process_dir = join(work_dir, 'NSBAS_PROCESS')
+    Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
+    get_date_list(pairs, nsbas_process_dir)
+    
+    pair_table = join(work_dir, "PAIRS", "table_pairs.txt")
+    date_list_file = join(nsbas_process_dir, 'dates_list.txt')
+
+    print('START PREPARING H DIRECTORY')
+    prepare_nsbas_dir(work_dir, nsbas_process_dir, 'H', pair_table, date_list_file)
+    print('FINISHED H')
+
+    print('START PREPARING V DIRECTORY')
+    prepare_nsbas_dir(work_dir, nsbas_process_dir, 'V', pair_table, date_list_file)
+    print('FINISHED V')

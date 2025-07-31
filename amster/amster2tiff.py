@@ -5,7 +5,7 @@ amster2tiff.py
 ------------
 Converts AMSTer raster file to GTiff.
 
-Usage: amster2tiff.py --infile=<infile> --outfile=<outfile> (--params=<params> | <nrow> <ncol>) [--db]
+Usage: amster2tiff.py <infile> <outfile> (--params=<params> | <nrow> <ncol>) [--db] [-r | --reverse]
 amster2tiff.py -h | --help
 
 Options:
@@ -27,6 +27,11 @@ def open_amster(file, nrow, ncol):
     return array[:nrow * ncol].reshape((nrow, ncol))
 
 
+def save_amster(path, data):
+    with open(path, 'w') as f:
+        data.flatten().as_type('float32').tofile(f)
+
+
 def open_params(param_file):
     with open(param_file, 'r') as pfile:
         lines = [''.join(l.strip().split('\t\t')[0]) for l in pfile.readlines()]
@@ -45,8 +50,8 @@ def save_gtiff(array, outfile):
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
-    infile = arguments["--infile"]
-    outfile = arguments["--outfile"]
+    infile = arguments["<infile>"]
+    outfile = arguments["<outfile>"]
     params = arguments["--params"]
     nrow = arguments["<nrow>"]
     ncol = arguments["<ncol>"]

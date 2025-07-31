@@ -371,7 +371,7 @@ def resolve_plot(data, arguments, crop, do_save):
             plt.savefig(infile + '_zoom.pdf', format='PDF', dpi=180)
     
     if arguments["--stats"]:
-        display_stats(data, zoom)
+        display_stats(data, zoom, crop)
 
 
 def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin):
@@ -445,7 +445,7 @@ def display_raster_format(infile, driver, x, y, b, dtype):
     print(">  DataType:", dtype)
 
 
-def display_stats(data, zoom):
+def display_stats(data, zoom, crop):
     from scipy.stats import describe
     
     print("> Stats")
@@ -466,6 +466,8 @@ def display_stats(data, zoom):
         print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
     
     if zoom is not None:
+        if crop is None or len(crop) != 4:
+            crop = [0, data[0].shape[0], 0, data[0].shape[1]]
         print("Zoom: ")
         zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
         desc = describe(zdata, axis=None, nan_policy="omit")

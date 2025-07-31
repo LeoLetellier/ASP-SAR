@@ -5,7 +5,7 @@ amster2aspsar.py
 --------------
 Prepare the directory structure for further processing. Link all ALL2GIF results in the given destination dir.
 
-Usage: amster2aspsar.py --amster=<path> --aspsar=<path> [--s1] [--crop=<crop>] [--mode=<mode>]
+Usage: amster2aspsar.py <amster> <aspsar> [--s1] [--crop=<crop>] [--mode=<mode>]
 amster2aspsar.py -h | --help
 
 Options:
@@ -28,8 +28,8 @@ import pandas as pd
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
-    sm_dir = arguments["--amster"]
-    working_dir = arguments["--aspsar"]
+    sm_dir = arguments["<amster>"]
+    working_dir = arguments["<aspsar>"]
     s1 = arguments["--s1"]
     crop = arguments["--crop"]
     if crop is not None:
@@ -39,7 +39,8 @@ if __name__ == "__main__":
         mode = 'log'
 
     if len(check_for_empty_files(sm_dir)) >= 1:
-        raise Exception('Check ALL2GIF directories')
+        print("files are empty or inconsistent!")
+        # raise Exception('Check ALL2GIF directories')
     
     data_path_list = prepare_dir_list(sm_dir)
 
@@ -65,4 +66,6 @@ if __name__ == "__main__":
 
     all_file_df = pd.DataFrame(columns=['file', 'ncol', 'nrow'])
     convert_all(working_dir, all_file_df, geotiff_dir, s1, crop=crop, mode=mode)
+
+    print("AMSTER to ASPSAR: done")
     

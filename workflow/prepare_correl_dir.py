@@ -20,6 +20,7 @@ import os
 import pandas as pd
 from pathlib import Path
 import docopt
+import glob
 
 
 def filter_mod_files(input_file):
@@ -40,6 +41,8 @@ def prepare_dir_list(input_path):
     data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if os.path.isdir(os.path.join(input_path, d, 'i12', 'InSARProducts'))]
     data_dirs_paths = list(set(data_dirs_paths))
     out_list = []
+
+    # return glob.glob(os.path.join(input_path, '*', 'i12', 'InSARProducts', '*.VV.mod'))
     
     for d in data_dirs_paths:
         for f in os.listdir(d):
@@ -47,6 +50,9 @@ def prepare_dir_list(input_path):
             if(os.path.splitext(file)[1] == '.mod'):
                 if file not in out_list and filter_mod_files(file):
                     out_list.append(file)
+                    print("keep", file)
+                else:
+                    print("dont keep: invalid size", file)
     return out_list
 
 
