@@ -125,7 +125,7 @@ def resolve_format(infile):
     
     if has_hdr:
         return 'GDAL', None
-    elif file_format == 'REAL4' or (file_format is None and has_rsc):
+    elif file_format is None and has_rsc:
         return 'REAL4', maybe_rsc
     elif file_format == 'REAL4' or (file_format is None and has_real4_param):
         return 'REAL4', maybe_real4_param
@@ -365,7 +365,7 @@ def resolve_plot(data, arguments, crop, do_save):
             plt.savefig(infile + '_histo.pdf', format='PDF', dpi=180)
 
     if zoom is not None:
-        plot_zoom(data, crop, zoom, cpt, title)
+        plot_zoom(data, crop, zoom, cpt, vmin, vmax, title)
         if do_save:
             print("Saving zoom...")
             plt.savefig(infile + '_zoom.pdf', format='PDF', dpi=180)
@@ -427,13 +427,11 @@ def plot_histo(data, title, crop, zoom):
     # min min2% 
 
 
-def plot_zoom(data, crop, zoom, cpt, title):
+def plot_zoom(data, crop, zoom, cpt, vmin, vmax, title):
     """Construct the zoom display"""
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
     zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
-    vmin = np.nanpercentile(zdata, 2)
-    vmax = np.nanpercentile(zdata, 98)
     plot_raster(zdata, cpt, vmin, vmax, cross=None, title=title + " [ZOOM]", zoom=None, origin=(zoom[0], zoom[2]))
 
 
