@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-raster_median_filter.py
---------------
-Compute a median filter on a one band raster.
+btw_filter.py
 
-Usage: raster_median_filter.py --infile=<infile>  [--kernel=<kernel>]
-raster_median_filter.py -h | --help
+Usage: btw_filter.py <infile> [<cutfreq>] [--hf]
+btw_filter.py -h | --help
 
 Options:
 -h | --help             Show this screen
@@ -17,8 +15,7 @@ Options:
 
 import numpy as np
 from osgeo import gdal
-from scipy.signal import medfilt2d
-from skimage.restoration import denoise_nl_means, estimate_sigma
+from skimage.filters import butterworth
 import os
 import docopt
 
@@ -53,21 +50,19 @@ def save_tif(data, path, ncols, nlines, proj, geotransform, ndv):
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
 
-    infile = arguments["--infile"]
-    kernel = [int(k) for k in arguments["--kernel"].split(" ")] if arguments["--kernel"] else 3
-
+    infile = arguments["<infile>"]
+    cut = arguments["<cutfreq>"]
+    
     (tif, nlines, ncols, proj, geotr, ndv) = open_tif(infile)
-    # ncols nlines inv !???!?!?!!
+    
+    if cut is not None:
+        cut = float(cut)
+        filtered = butterworth(tif, cutoff_frequency_ratio=cut, high_pass=arguments["--hf"])
+    else:
+        filtered = butterworth(tif, high_pass=arguments["--hf"])
 
-    filtered = medfilt2d(tif, kernel)
-    # sigma = np.mean(estimate_sigma(tif, channel_axis=-1))
-    # filtered = denoise_nl_means(tif)
-    assert tif.shape == filtered.shape
-
-    save_tif(filtered, os.path.splitext(infile)[0] + "_medfiltered.tif", 
+    save_tif(filtered, os.path.splitext(infile)[0] + "_btw.tif", 
              ncols, nlines, proj, geotr, ndv)
-    # save_tif(filtered, os.path.splitext(infile)[0] + "_nlm.tif", 
-    #          ncols, nlines, proj, geotr, ndv)
     
     print("done!")
     

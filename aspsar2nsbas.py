@@ -28,12 +28,77 @@ DIRS = ['H', 'V', 'NCC']
 EXPORT = 'EXPORT'
 
 
+def open_gdal(path, band=1):
+    ds = gdal.Open(path)
+    ndv = ds.GetRasterBand(band).GetNoDataValue()
+    data = ds.GetRasterBand(band).ReadAsArray()
+    if ndv is not None and ndv != np.nan:
+        data[data == ndv] = np.nan
+    return data
+
+
+def save_gdal(path, data, template, ndv):
+    ds_template = gdal.Open(template)
+    ds = gdal.GetDriverByName('GTiff').CreateCopy(path, ds_template)
+    band = ds.GetRasterBand(1)
+
+    band_ndv = band.GetNoDataValue()
+
+    if band_ndv is not None:
+        ndv = band_ndv
+    elif ndv is not None:
+        band.SetNoDataValue(ndv)
+
+    if ndv is not None and ndv != np.nan:
+        data[data==np.nan] = ndv
+    
+    band.WriteArray(data)
+    ds.FlushCache()
+
+
+def save_r4(path, data, ndv=None):
+    if ndv is not None and ndv != np.nan:
+        data[data==np.nan] = ndv
+    with open(path, 'wb') as outfile:
+        data.flatten().astype('float32').tofile(outfile)
+    ncol, nrow = data.shape[1], data.shape[0]
+    with open(path + '.rsc', "w") as rsc_file:
+        rsc_file.write("""\
+    WIDTH                 %d
+    FILE_LENGTH           %d
+    XMIN                  0
+    XMAX                  %d
+    YMIN                  0
+    YMAX                  %d""" % (ncol, nrow, ncol-1, nrow-1))
+
+
 def check_dirs(path, force=False):
     for d in DIRS:
         cwd = join(path, EXPORT, d)
         if force:
             shutil.rmtree(cwd)
         Path(cwd).mkdir(parents=True, exist_ok=True)
+
+
+def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=True, do_mask=True, disp_path = None):
+    if disp_path is None:
+        disp_path = path
+    data = open_gdal(path=path, band=band_disp)
+    mask = open_gdal(path=disp_path, band=band_ndv)
+    
+    if do_mask:
+        #data[mask==0] = np.nan
+        np.putmask(data, mask==0, np.nan)
+    if rm_med:
+        data = (data - np.nanmedian(data)) * sampling
+    #     median = np.nanmedian(data)
+    #     data -= median
+    # data *= sampling
+    else:
+        data *= sampling
+
+    #save_gdal(path=target, data=data, template=path, ndv=9999)
+    save_r4(path=target, data=data)
 
 
 def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl):
@@ -53,17 +118,17 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl):
             if os.path.isfile(H_target):
                     print('Skip {}, already exists'.format(H_target))
             else:
-                subtract_median(disp_path, H_target, 1, rg_sampl, gdal=False)
+                correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl)
             
             if os.path.isfile(V_target):
                 print('Skip {}, already exists'.format(V_target))
             else:
-                subtract_median(disp_path, V_target, 2, az_sampl, gdal=False)
+                correct_disparity(disp_path, V_target, band_disp=2, sampling=az_sampl)
             
             if os.path.isfile(NCC_target):
                 print('Skip {}, already exists'.format(NCC_target))
             else:
-                get_cc_map(ncc_path, NCC_target, 1, gdal=False)
+                correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path)
 
             print('Finished pair: {}'.format(os.path.basename(d)))
             valid_pairs.append(os.path.basename(d))

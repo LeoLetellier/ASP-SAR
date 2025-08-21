@@ -53,7 +53,7 @@ print()
 print()
 print('Author: Simon Daout')
 print()
-print('revised version July 2025 (Leo Letellier)')
+print('revised version August 2025 (Leo Letellier)')
 print()
 
 try:
@@ -125,7 +125,7 @@ def resolve_format(infile):
     
     if has_hdr:
         return 'GDAL', None
-    elif file_format is None and has_rsc:
+    elif file_format in [None, 'REAL4'] and has_rsc:
         return 'REAL4', maybe_rsc
     elif file_format == 'REAL4' or (file_format is None and has_real4_param):
         return 'REAL4', maybe_real4_param
