@@ -57,6 +57,12 @@ def check_is_cube(range, azimuth):
     bd_range = gdal.Open(range).RasterCount
     bd_azimuth = gdal.Open(azimuth).RasterCount
     return bd_range == bd_azimuth and bd_range > 1
+
+
+def xy_to_north(x, y, heading):
+    aspect_data = np.pi/2 - np.arctan2(y, x) - np.deg2rad(heading)
+    aspect_data[aspect_data < 0] = aspect_data[aspect_data < 0] + 2*np.pi
+    return np.rad2deg(aspect_data)
     
 
 if __name__ == "__main__":
@@ -87,10 +93,14 @@ if __name__ == "__main__":
     if heading_value > 180:
         heading_value -= 180
 
+    x = [1, 1, -1, -1]
+    y = [1, -1, 1, -1]
+
     for b in range(1, bd_nb + 1):
         print(f"\tband {b}")
         range_data = open_gdal(range_file, b)
-        azimuth_data = open_gdal(azimuth_file, b)
+        # azimuth disparity is up to bottom where axis is bottom to up
+        azimuth_data = -open_gdal(azimuth_file, b)
 
         if r_res is not None:
             range_data /= float(r_res)
@@ -103,8 +113,8 @@ if __name__ == "__main__":
             azimuth_data = -azimuth_data
 
         amplitude_data = np.sqrt(np.square(range_data) + np.square(azimuth_data))
-        aspect_data = np.rad2deg(np.arctan2(azimuth_data, range_data))
-        aspect_data = np.mod((aspect_data + 90) - heading_value, 360)
+        aspect_data = xy_to_north(range_data, azimuth_data, heading_value)
+        print(xy_to_north(x, y, heading_value))
 
         save_gdal_band(target_amp, b, amplitude_data)
         save_gdal_band(target_asp, b, aspect_data)
