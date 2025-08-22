@@ -20,7 +20,8 @@ Display and Cut image file (.unw/.int/.r4/.tiff)
 Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
 [--dim=<dim> | --gdal | --lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] \
 [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
-[--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats]
+[--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
+[--bg=<bg>] [--alpha=<alpha>]
 
 
 Options:
@@ -47,6 +48,8 @@ Options:
 --histo                 Additionnaly display the raster histogram
 --stats                 Display the raster and zoom statistics
 --save                  Save the display to pdf
+--bg                    Path to a background raster of same dimension as infile [must be GDAL raster]
+--alpha                 Alpha value to apply to the infile to show the background behind [default: 0.8]
 """
 
 print()
@@ -301,7 +304,7 @@ def correct_values_amp(amp, ext):
     return amp
 
 
-def resolve_plot(data, arguments, crop, do_save):
+def resolve_plot(data, arguments, crop, do_save, bg, alpha):
     """Manage all displays to be plotted"""
     vmin = arg2value(arguments["--vmin"], float)
     vmax = arg2value(arguments["--vmax"], float)
@@ -342,7 +345,7 @@ def resolve_plot(data, arguments, crop, do_save):
         origin = (crop[0], crop[2])
 
     # Plot the main dislay (phase)
-    plot_raster(data[0], cpt, vmin, vmax, cross, title, zoom, origin)
+    plot_raster(data[0], cpt, vmin, vmax, cross, title, zoom, origin, bg, alpha)
 
     if do_save:
         print("Saving figure...")
@@ -352,7 +355,7 @@ def resolve_plot(data, arguments, crop, do_save):
         # Plot the secondary display (amplitude)
         vmin = np.nanpercentile(data[1], 2)
         vmax = np.nanpercentile(data[1], 98)
-        plot_raster(data[1], 'Greys', vmin, vmax, cross, title + " [Amplitude]", zoom, origin)
+        plot_raster(data[1], 'Greys_r', vmin, vmax, cross, title + " [Amplitude]", zoom, origin, bg, alpha)
         if do_save:
             print("Saving amplitude...")
             plt.savefig(infile + '_amplitude.pdf', format='PDF', dpi=180)
@@ -365,7 +368,7 @@ def resolve_plot(data, arguments, crop, do_save):
             plt.savefig(infile + '_histo.pdf', format='PDF', dpi=180)
 
     if zoom is not None:
-        plot_zoom(data, crop, zoom, cpt, vmin, vmax, title)
+        plot_zoom(data, crop, zoom, cpt, vmin, vmax, title, bg, alpha)
         if do_save:
             print("Saving zoom...")
             plt.savefig(infile + '_zoom.pdf', format='PDF', dpi=180)
@@ -374,14 +377,15 @@ def resolve_plot(data, arguments, crop, do_save):
         display_stats(data, zoom, crop)
 
 
-def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin):
+def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin, bg, alpha):
     """Construct the raster display"""
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(1,1,1)
     extent = None
     if origin is not None:
         extent = (origin[0], origin[0] + raster.shape[1], origin[1] + raster.shape[0], origin[1])
-    hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax, extent=extent)
+    bax = ax.imshow(bg, 'Greys_r', interpolation='nearest', extent=extent)
+    hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax, extent=extent, alpha=alpha)
     ax.set_title(title)
     divider = make_axes_locatable(ax)
     c = divider.append_axes("right", size="5%", pad=0.05)
@@ -427,12 +431,16 @@ def plot_histo(data, title, crop, zoom):
     # min min2% 
 
 
-def plot_zoom(data, crop, zoom, cpt, vmin, vmax, title):
+def plot_zoom(data, crop, zoom, cpt, vmin, vmax, title, bg, alpha):
     """Construct the zoom display"""
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
     zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
-    plot_raster(zdata, cpt, vmin, vmax, cross=None, title=title + " [ZOOM]", zoom=None, origin=(zoom[0], zoom[2]))
+    if bg is not None:
+        zbg = bg[zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
+    else:
+        zbg = None
+    plot_raster(zdata, cpt, vmin, vmax, None, title + " [ZOOM]", None, (zoom[0], zoom[2]), zbg, alpha)
 
 
 def display_raster_format(infile, driver, x, y, b, dtype):
@@ -445,34 +453,53 @@ def display_raster_format(infile, driver, x, y, b, dtype):
 
 def display_stats(data, zoom, crop):
     from scipy.stats import describe
+
+    STATS = ['MIN', 'MAX', 'MEAN', 'VAR', 'MED', 'SKW', 'KRT', 'VAL']
     
     print("> Stats")
-    print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
-    print("Main:")
+    # print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
+    # print("Main:")
     desc = describe(data[0], axis=None, nan_policy="omit")
     med = np.nanmedian(data[0])
     nb_values = data[0].shape[0] * data[0].shape[1]
     nb_nans = np.count_nonzero(np.isnan(data[0]))
-    print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
+    region = ['MAIN']
+    stats = [['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
+              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)]]
+    # stats = [[desc[1][0], desc[1][1], desc[2], desc[3], med, desc[4], desc[5], (1 - nb_nans/nb_values) * 100]]
+    # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
 
     if len(data) > 1:
-        print("Secondary: ")
+        # print("Secondary: ")
         desc = describe(data[1], axis=None, nan_policy="omit")
         med = np.nanmedian(data[1])
         nb_values = data[1].shape[0] * data[1].shape[1]
         nb_nans = np.count_nonzero(np.isnan(data[1]))
-        print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
+        region.append('SECOND')
+        stats.append(['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
+              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)])
+        # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
     
     if zoom is not None:
         if crop is None or len(crop) != 4:
             crop = [0, data[0].shape[0], 0, data[0].shape[1]]
-        print("Zoom: ")
+        # print("Zoom: ")
         zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
         desc = describe(zdata, axis=None, nan_policy="omit")
         med = np.nanmedian(zdata)
         nb_values = zdata.shape[0] * zdata.shape[1]
         nb_nans = np.count_nonzero(np.isnan(zdata))
-        print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
+        region.append('ZOOM')
+        stats.append(['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
+              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)])
+        # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
+    
+    print('\t' + '\t\t'.join(region))
+    for i, s in enumerate(STATS):
+        print(s + '\t', end='')
+        for r in range(len(region)):
+            print(stats[r][i], end='\t\t')
+        print()
     
 
 if __name__ == "__main__":
@@ -536,6 +563,16 @@ if __name__ == "__main__":
 
     display_raster_format(infile, driver, x, y, b, dtype)
 
+    bg = arguments["--bg"]
+    alpha = arg2value(arguments["--alpha"], float, 0.8)
+    if bg is not None:
+        try:
+            bg = open_band_gdal(bg, 1, crop)[0][0]
+        except:
+            raise ValueError('Background file is not valid: {}'.format(bg))
+    else:
+        alpha = 1
+
     rad2mm = arg2value(arguments["--rad2mm"], float)
     wrap = arg2value(arguments["--wrap"], float)
 
@@ -545,7 +582,7 @@ if __name__ == "__main__":
 
     do_save = arguments["--save"]
     
-    resolve_plot(data, arguments, crop, do_save)
+    resolve_plot(data, arguments, crop, do_save, bg, alpha)
 
     plt.show()
     
