@@ -22,7 +22,6 @@ import glob
 import docopt
 from subprocess import run, STDOUT
 from shutil import copy, rmtree
-import numpy as np
 
 from osgeo import gdal
 

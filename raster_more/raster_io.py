@@ -21,7 +21,7 @@ def open_raster(path, band=1, crop=None, ndv_supp=None):
 
 def create_raster(path, data, offset=None, ndv=None, bands_nb=1):
     drv = gdal.GetDriverByName('GTiff')
-    ds = drv.Create(path, data.shape[1], data.shape[0], bands_nb, gdal.GDT_Int32)
+    ds = drv.Create(path, data.shape[1], data.shape[0], bands_nb, gdal.GDT_Float32)
     
     if offset is not None:
         ds.SetGeoTransform((offset(0), 1, 0, offset(1), 0, -1))

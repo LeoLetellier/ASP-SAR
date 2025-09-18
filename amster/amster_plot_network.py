@@ -4,7 +4,7 @@
 amster_plot_network.py
 ------------
 
-Usage: amster_plot_network.py <table> [<baselines>]
+Usage: amster_plot_network.py <table> [<baselines>] [--histo]
 
 Options:
 -h | --help         Show this screen
@@ -67,6 +67,13 @@ def plot_network(pairs, baselines):
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y/%m/%d"))
 
 
+def plot_histo(bt):
+    plt.figure()
+    plt.hist(bt, bins=500, color='k')
+    plt.ylabel("Baseline Occurence")
+    plt.xlabel("Temporal Baseline (day)")
+
+
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
 
@@ -74,8 +81,10 @@ if __name__ == "__main__":
     baselines_file = arguments["<baselines>"]
     if baselines_file is None:
         baselines_file = 'SM_Approx_baselines.txt'
+    do_histo = arguments["--histo"]
 
     pairs = open_table(table)
+    print("Number of pairs in table:", len(pairs))
     # print("pairs", pairs)
     baselines = open_baselines(baselines_file)
     # print("baselines", baselines)
@@ -109,4 +118,9 @@ if __name__ == "__main__":
     #     print("length pb")
 
     plot_network(pairs, bb)
+    
+    if do_histo:
+        bt = np.genfromtxt(table, skip_header=1, usecols=3, dtype=float)
+        plot_histo(bt)
+
     plt.show()

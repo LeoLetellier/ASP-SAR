@@ -384,7 +384,8 @@ def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin, bg, alpha):
     extent = None
     if origin is not None:
         extent = (origin[0], origin[0] + raster.shape[1], origin[1] + raster.shape[0], origin[1])
-    bax = ax.imshow(bg, 'Greys_r', interpolation='nearest', extent=extent)
+    if bg is not None:
+        bax = ax.imshow(bg, 'Greys_r', interpolation='nearest', extent=extent)
     hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax, extent=extent, alpha=alpha)
     ax.set_title(title)
     divider = make_axes_locatable(ax)
@@ -456,7 +457,7 @@ def display_stats(data, zoom, crop):
 
     STATS = ['MIN', 'MAX', 'MEAN', 'VAR', 'MED', 'SKW', 'KRT', 'VAL']
     
-    print("> Stats")
+    print(">  Stats:")
     # print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
     # print("Main:")
     desc = describe(data[0], axis=None, nan_policy="omit")

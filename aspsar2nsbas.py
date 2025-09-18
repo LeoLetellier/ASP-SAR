@@ -5,7 +5,7 @@ amster2aspsar.py
 --------------
 Prepare the directory structure for further processing. Link all ALL2GIF results in the given destination dir.
 
-Usage: amster2aspsar.py <aspsar> [--force]
+Usage: amster2aspsar.py <aspsar> [--force] [--no-mask]
 amster2aspsar.py -h | --help
 
 Options:
@@ -20,6 +20,7 @@ import os
 from os.path import join
 from pathlib import Path
 import shutil
+from tqdm import tqdm
 
 from workflow.prepare_result_export import *
 from workflow.prepare_nsbas_process import *
@@ -101,11 +102,11 @@ def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=
     save_r4(path=target, data=data)
 
 
-def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl):
+def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, do_mask):
     valid_pairs = []
     
-    for i, d in enumerate(dir_list):
-        print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
+    for i, d in tqdm(enumerate(dir_list)):
+        # print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
         curr_pair = os.path.basename(d)
         disp_path = join(d, 'stereo-F.tif')
         ncc_path = join(d, 'stereo-ncc.tif')
@@ -118,19 +119,19 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl):
             if os.path.isfile(H_target):
                     print('Skip {}, already exists'.format(H_target))
             else:
-                correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl)
+                correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl, do_mask=do_mask)
             
             if os.path.isfile(V_target):
                 print('Skip {}, already exists'.format(V_target))
             else:
-                correct_disparity(disp_path, V_target, band_disp=2, sampling=az_sampl)
+                correct_disparity(disp_path, V_target, band_disp=2, sampling=az_sampl, do_mask=do_mask)
             
             if os.path.isfile(NCC_target):
                 print('Skip {}, already exists'.format(NCC_target))
             else:
-                correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path)
+                correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path, do_mask=do_mask)
 
-            print('Finished pair: {}'.format(os.path.basename(d)))
+            # print('Finished pair: {}'.format(os.path.basename(d)))
             valid_pairs.append(os.path.basename(d))
         else:
             print('No correl-F.tif file found in {}'.format(curr_pair))
@@ -176,6 +177,7 @@ if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     work_dir = arguments['<aspsar>']
     force = arguments['--force']
+    do_mask = not arguments['--no-mask']
     
     correl_dir = join(work_dir, 'STEREO')
 
@@ -196,7 +198,7 @@ if __name__ == "__main__":
     print('PROCESS AND COPY DISPARITY MAPS')
     print('##################################')
 
-    pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl)
+    pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl, do_mask=do_mask)
 
     print(">> >> PAIRS", pairs)
 

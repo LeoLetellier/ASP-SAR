@@ -34,18 +34,21 @@ def check_for_empty_files(all2gif_dir, do_print=False):
                 ncol, nrow = int(img_dim[0].strip()), int(img_dim[1].strip())
                 if ncol == 0 or nrow == 0:
                     if do_print:
-                        print("empty:", d)
+                        print(">> EMPTY:", d)
                     out += [d]
                 elif refcol is not None and refrow is not None:
                     if ncol != refcol or nrow != refrow:
                         if do_print:
-                            print('inconsistent size ({}, {}):'.format(ncol, nrow), d)
+                            print('>> INCONSISTENT SIZE: ({}, {}):'.format(ncol, nrow), d)
                         out += [d]
+                    else:
+                        print("ok: {}".format(d))
                 else:
                     refcol = ncol
                     refrow = nrow
                     if do_print:
-                        print("ref size is ({}, {})".format(ncol, nrow))
+                        print("REF SIZE: ({}, {})".format(ncol, nrow))
+                    print("ok: {}".format(d))
     return out
 
 

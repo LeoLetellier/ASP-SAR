@@ -5,7 +5,7 @@ r4_to_gdal.py
 
 Conversion between r4 and gdal GTiff
 
-Usage: r4_to_gdal.py <input> <output> [<ncol> <nrow>]
+Usage: r4_to_gdal.py <input> <output> [<ncol> <nrow>] [--r]
 r4_to_gdal.py -h | --help
 
 Options:
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     ncol = arguments["<ncol>"]
     nrow = arguments["<nrow>"]
     r4_to_gdal = True
+    reverse = arguments["--r"]
 
     if ncol is not None:
         ncol = int(ncol)
@@ -71,33 +72,37 @@ if __name__ == "__main__":
     input_ext = os.path.splitext(input)[1]
     output_ext = os.path.splitext(output)[1]
 
-    if input_ext == '.r4':
-        r4 = input
-        gd = output
-    elif output_ext == '.r4':
-        r4 = output
-        gd = input
-        r4_to_gdal = False
-    else:
-        print("guessing r4")
-        try:
-            gdal.Open(input)
-        except:
-            try:
-                gdal.Open(output)
-            except:
-                raise ValueError('no gdal raster')
-            else:
-                gd = output
-                r4 = input
-        else:
-            gd = input
-            r4 = output
-            r4_to_gdal = False
+
+    # if input_ext == '.r4':
+    #     r4 = input
+    #     gd = output
+    # elif output_ext == '.r4':
+    #     r4 = output
+    #     gd = input
+    #     r4_to_gdal = False
+    # elif input_ext is None:
+    #     r4 = input
+    #     gd = output
+    # else:
+    #     print("guessing r4")
+    #     try:
+    #         gdal.Open(input)
+    #     except:
+    #         try:
+    #             gdal.Open(output)
+    #         except:
+    #             raise ValueError('no gdal raster')
+    #         else:
+    #             gd = output
+    #             r4 = input
+    #     else:
+    #         gd = input
+    #         r4 = output
+    #         r4_to_gdal = False
     
-    if r4_to_gdal:
-        input_data = open_r4(r4, dim=(ncol, nrow))
-        save_gdal(gd, input_data)
+    if not reverse:
+        input_data = open_r4(input, dim=(ncol, nrow))
+        save_gdal(output, input_data)
     else:
-        input_data = open_gdal(gd)
-        save_r4(r4, input_data)
+        input_data = open_gdal(output)
+        save_r4(input, input_data)

@@ -101,6 +101,10 @@ if __name__ == "__main__":
         range_data = open_gdal(range_file, b)
         # azimuth disparity is up to bottom where axis is bottom to up
         azimuth_data = -open_gdal(azimuth_file, b)
+        # rg_nan = np.isnan(range_data)
+        # az_nan = np.isnan(azimuth_data)
+        # range_data[rg_nan & ~az_nan] = 0
+        # azimuth_data[az_nan & ~rg_nan] = 0
 
         if r_res is not None:
             range_data /= float(r_res)
