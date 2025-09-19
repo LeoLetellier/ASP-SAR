@@ -21,7 +21,8 @@ Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
 [--dim=<dim> | --gdal | --lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] \
 [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
 [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
-[--bg=<bg>] [--alpha=<alpha>]
+[--bg=<bg>] [--alpha=<alpha>] [--vario] [--samples=<samples>] [--dlag=<dlag>] [--nlag=<nlag>] [--model=<model>] \
+[--res=<res>]
 
 
 Options:
@@ -56,7 +57,7 @@ print()
 print()
 print('Author: Simon Daout')
 print()
-print('revised version August 2025 (Leo Letellier)')
+print('revised version September 2025 (Leo Letellier)')
 print()
 
 try:
@@ -70,6 +71,7 @@ import matplotlib.cm as cm
 from osgeo import gdal
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
+from skgstat import Variogram
 
 gdal.UseExceptions()
 
@@ -444,6 +446,22 @@ def plot_zoom(data, crop, zoom, cpt, vmin, vmax, title, bg, alpha):
     plot_raster(zdata, cpt, vmin, vmax, None, title + " [ZOOM]", None, (zoom[0], zoom[2]), zbg, alpha)
 
 
+def plot_vario(data, dims, model='spherical', samples=10000, maxlag=400, n_lags=20):
+    print(">  Variogram:")
+    rows, cols = np.indices((data.shape[0], data.shape[1]))
+    data, rows, cols = data.flatten(), rows.flatten() * dims[1], cols.flatten() * dims[0]
+    valid_data = ~np.isnan(data)
+    data = data[valid_data]
+    rows = rows[valid_data]
+    cols = cols[valid_data]
+    v = Variogram(np.column_stack((cols , rows)), data, model=model, use_nugget=True, samples=samples, maxlag=maxlag, n_lags=n_lags)
+    v.plot()
+    stats = v.parameters
+    print("Range:\t{:.4}".format(stats[0]))
+    print("Sill:\t{:.4}".format(stats[1]))
+    print("Nugget:\t{:.4}".format(stats[2]))
+
+
 def display_raster_format(infile, driver, x, y, b, dtype):
     """Display information about the raster reading"""
     print(">  File:", infile)
@@ -584,6 +602,14 @@ if __name__ == "__main__":
     do_save = arguments["--save"]
     
     resolve_plot(data, arguments, crop, do_save, bg, alpha)
+
+    if arguments["--vario"]:
+        samples = arg2value(arguments["--samples"], conversion=int, default=10000)
+        dlag = arg2value(arguments["--dlag"], conversion=int, default=500)
+        nlag = arg2value(arguments["--nlag"], conversion=int, default=20)
+        model = arg2value(arguments["--model"], default="spherical")
+        res = arg2value(arguments["--res"], conversion=lambda x: x.split(',')[:2], default=[1, 1])
+        plot_vario(data[0], [float(res[0]), float(res[1])], model, samples ,dlag, nlag)
 
     plt.show()
     
