@@ -71,7 +71,6 @@ import matplotlib.cm as cm
 from osgeo import gdal
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
-from skgstat import Variogram
 
 gdal.UseExceptions()
 
@@ -422,8 +421,8 @@ def plot_histo(data, title, crop, zoom):
         histo_label.append('Zoom')
     
     for d, l in zip(histo_data, histo_label):
-        lower = np.nanpercentile(d, 0.1)
-        upper = np.nanpercentile(d, 99.9)
+        lower = np.nanpercentile(d, 1)
+        upper = np.nanpercentile(d, 99)
         hist_values, bin_edges = np.histogram(d[~np.isnan(d)].flatten(), bins=50, range=(lower, upper))
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         plt.plot(bin_centers, hist_values / np.sum(hist_values), label=l)
@@ -527,6 +526,11 @@ if __name__ == "__main__":
     if not os.path.isfile(infile):
         raise FileNotFoundError("No such raster file: {}".format(infile))
     ext = os.path.splitext(infile)[1]
+    if arguments["--vario"]:
+        try:
+            from skgstat import Variogram
+        except:
+            raise ImportError("Need module scikit-gstats for variogram features")
 
     crop = arguments["--crop"]
     if crop is not None:

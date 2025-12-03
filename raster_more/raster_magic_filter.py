@@ -23,8 +23,8 @@ from osgeo import gdal
 from scipy.signal import medfilt2d
 import os
 import docopt
-from scipy.ndimage.filters import uniform_filter
-from scipy.ndimage.measurements import variance
+from scipy.ndimage import uniform_filter
+from scipy.ndimage import variance
 
 
 def lee_filter(img, size):
@@ -133,7 +133,8 @@ if __name__ == "__main__":
     files = []
     with open(infile, "r") as f:
         for line in f:
-            files.append(line.strip())
+            if line is not None:
+                files.append(line.strip())
     
     kernel = [int(k) for k in arguments["--kernel"].split(" ")] if arguments["--kernel"] else 3
 
@@ -144,6 +145,7 @@ if __name__ == "__main__":
 
     imgs = []
     for i in files:
+        print(i)
         imgs.append(GeoTiff().open(i))
     
     im = imgs[0].data # interest image

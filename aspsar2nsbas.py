@@ -5,7 +5,7 @@ amster2aspsar.py
 --------------
 Prepare the directory structure for further processing. Link all ALL2GIF results in the given destination dir.
 
-Usage: amster2aspsar.py <aspsar> [--force] [--no-mask]
+Usage: amster2aspsar.py <aspsar> [--force] [--cc-mask] [--da-mask=<da-mask>]
 amster2aspsar.py -h | --help
 
 Options:
@@ -21,9 +21,16 @@ from os.path import join
 from pathlib import Path
 import shutil
 from tqdm import tqdm
+import numba
+from osgeo import gdal
+from time import time
+import numpy as np
+import pandas as pd
 
-from workflow.prepare_result_export import *
-from workflow.prepare_nsbas_process import *
+from workflow.prepare_result_export import generate_input_inv_send, get_date_list
+from workflow.prepare_nsbas_process import generate_list_dates, generate_list_pair
+
+gdal.UseExceptions()
 
 DIRS = ['H', 'V', 'NCC']
 EXPORT = 'EXPORT'
@@ -31,8 +38,12 @@ EXPORT = 'EXPORT'
 
 def open_gdal(path, band=1):
     ds = gdal.Open(path)
-    ndv = ds.GetRasterBand(band).GetNoDataValue()
-    data = ds.GetRasterBand(band).ReadAsArray()
+    ## Opening the raster is very slow here, why ? raster format ?
+    bd = ds.GetRasterBand(band)
+    ##
+    ndv = bd.GetNoDataValue()
+    data = bd.ReadAsArray()
+
     if ndv is not None and ndv != np.nan:
         data[data == ndv] = np.nan
     return data
@@ -81,31 +92,47 @@ def check_dirs(path, force=False):
         Path(cwd).mkdir(parents=True, exist_ok=True)
 
 
-def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=True, do_mask=True, disp_path = None):
+def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=True, cc_mask=True, da_mask=None, disp_path = None):
+    #TODO do cc_mask, da_mask
+
+    # t0 = time()
     if disp_path is None:
         disp_path = path
     data = open_gdal(path=path, band=band_disp)
     mask = open_gdal(path=disp_path, band=band_ndv)
-    
-    if do_mask:
+    # t1=time()
+    if cc_mask:
         #data[mask==0] = np.nan
         np.putmask(data, mask==0, np.nan)
+    if da_mask is not None:
+        # data, threshold
+        da_data, da_threshold = da_mask
+        np.putmask(data, da_data > da_threshold, np.nan)
     if rm_med:
-        data = (data - np.nanmedian(data)) * sampling
+        data[~np.isnan(data)] = correct_median(data[~np.isnan(data)], sampling)
     #     median = np.nanmedian(data)
     #     data -= median
     # data *= sampling
     else:
         data *= sampling
-
+    # t2=time()
     #save_gdal(path=target, data=data, template=path, ndv=9999)
     save_r4(path=target, data=data)
+    # t3=time()
+    # print(t1-t0, t2-t1, t3-t2)
+
+@numba.jit(nopython=True)
+def correct_median(array, coeff):
+    return (array - np.median(array)) * coeff
 
 
-def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, do_mask):
+def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, cc_mask, da_mask, da_file=None):
     valid_pairs = []
+    if da_mask is not None:
+        da = open_gdal(da_file)
+        da_mask = da, da_mask
     
-    for i, d in tqdm(enumerate(dir_list)):
+    for d in tqdm(dir_list):
         # print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
         curr_pair = os.path.basename(d)
         disp_path = join(d, 'stereo-F.tif')
@@ -119,17 +146,17 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, do_mask):
             if os.path.isfile(H_target):
                     print('Skip {}, already exists'.format(H_target))
             else:
-                correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl, do_mask=do_mask)
+                correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl, cc_mask=cc_mask, da_mask=da_mask)
             
             if os.path.isfile(V_target):
                 print('Skip {}, already exists'.format(V_target))
             else:
-                correct_disparity(disp_path, V_target, band_disp=2, sampling=az_sampl, do_mask=do_mask)
+                correct_disparity(disp_path, V_target, band_disp=2, sampling=az_sampl, cc_mask=cc_mask, da_mask=da_mask)
             
             if os.path.isfile(NCC_target):
                 print('Skip {}, already exists'.format(NCC_target))
             else:
-                correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path, do_mask=do_mask)
+                correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path, cc_mask=cc_mask, da_mask=da_mask)
 
             # print('Finished pair: {}'.format(os.path.basename(d)))
             valid_pairs.append(os.path.basename(d))
@@ -177,8 +204,14 @@ if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     work_dir = arguments['<aspsar>']
     force = arguments['--force']
-    do_mask = not arguments['--no-mask']
+    cc_mask = arguments['--cc-mask']
+    da_mask = None if arguments['--da-mask'] is None else float(arguments['--da-mask'])
     
+    da_file = join(work_dir, 'GEOTIFF', 'AMPLI_dSIMGA.tif')
+    if not os.path.isfile(da_file):
+        da_file = da_file = join(work_dir, 'GEOTIFF_ORIGINAL', 'AMPLI_dSIMGA.tif')
+    if not os.path.isfile(da_file):
+        raise FileNotFoundError("DA file (AMPLI_dSIMGA.tif) not found")
     correl_dir = join(work_dir, 'STEREO')
 
     sampling = pd.read_csv(join(work_dir, 'sampling.txt'), sep='\t')
@@ -198,7 +231,7 @@ if __name__ == "__main__":
     print('PROCESS AND COPY DISPARITY MAPS')
     print('##################################')
 
-    pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl, do_mask=do_mask)
+    pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl, cc_mask=cc_mask, da_mask=da_mask, da_file=da_file)
 
     print(">> >> PAIRS", pairs)
 

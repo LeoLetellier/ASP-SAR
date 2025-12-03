@@ -101,6 +101,7 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
         ncol, nrow = crop[1] - crop[0], crop[3] - crop[2]
     stack, sigma, weight = np.zeros((nrow, ncol)), np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
     stack_norm, sigma_norm = np.zeros((nrow, ncol)), np.zeros((nrow, ncol))
+    decorr_px = np.zeros((nrow, ncol))
 
     for f in tqdm(os.listdir(geotiff_dir)):
         if(f in corrupt_file_df['file'].values):
@@ -122,6 +123,8 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
                 index = np.nonzero(amp)
                 w[index] = 1
                 weight = weight + w
+
+                decorr_px += np.isnan(amp)
                 # print('Finished: {}'.format(f))
     
     stack[weight > 0] = stack[weight > 0] / weight[weight > 0]
@@ -134,7 +137,8 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
 
     save_to_file(stack, os.path.join(geotiff_dir, 'AMPLI_MEAN.tif'), crop=crop)
     save_to_file(sigma, os.path.join(geotiff_dir, 'AMPLI_SIGMA.tif'), crop=crop)
-    save_to_file(da, os.path.join(geotiff_dir, 'AMPLI_dSIMGA.tif'), crop=crop)
+    save_to_file(da, os.path.join(geotiff_dir, 'AMPLI_DA.tif'), crop=crop)
+    save_to_file(decorr_px, os.path.join(geotiff_dir, 'DECORR_PIXEL.tif', crop=crop))
 
     save_to_file(stack_norm, os.path.join(geotiff_dir, 'AMPLI_MEAN_NORM.tif'), crop=crop)
     save_to_file(sigma_norm, os.path.join(geotiff_dir, 'AMPLI_SIGMA_NORM.tif'), crop=crop)

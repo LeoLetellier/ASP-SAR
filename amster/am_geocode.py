@@ -5,7 +5,7 @@ am_geocode.py
 --------------
 Geocode images using AMSTer.
 
-Usage: am_geocode.py <infile> --amster=<amster> [--params=<params>] --outdir=<outdir>  [--crop=<crop>]
+Usage: am_geocode.py <infile> --amster=<amster> [--params=<params>] --outdir=<outdir>  [--crop=<crop>] [--ndv=<ndv>]
 am_geocode.py -h | --help
 
 Options:
@@ -229,6 +229,7 @@ if __name__ == "__main__":
     outdir = args["--outdir"]
     # crop = args["--crop"]
     merge = False
+    ndv = None if args["--ndv"] is None else float(args["--ndv"])
 
     if param is None:
         param = glob.glob(os.path.join(amster, "Launch*.txt"))[0]

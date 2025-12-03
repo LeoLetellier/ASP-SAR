@@ -23,8 +23,10 @@ def check_for_empty_files(all2gif_dir, do_print=False):
     out = []
     refcol = None
     refrow = None
+    is_empty = True
     for d in os.listdir(all2gif_dir):
         if(os.path.isdir(os.path.join(all2gif_dir, d)) and d[0] == '2'):
+            is_empty = False
             insar_param_file = os.path.join(all2gif_dir, d, 'i12', 'TextFiles', 'InSARParameters.txt')
             with open(insar_param_file, 'r') as f:
                 lines = [''.join(l.strip().split('\t\t')[0]) for l in f.readlines()]
@@ -49,6 +51,8 @@ def check_for_empty_files(all2gif_dir, do_print=False):
                     if do_print:
                         print("REF SIZE: ({}, {})".format(ncol, nrow))
                     print("ok: {}".format(d))
+    if is_empty:
+        print("There is no target in this folder. Take a deep breath and try again in another folder")
     return out
 
 
