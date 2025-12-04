@@ -85,15 +85,5 @@ if __name__ == "__main__":
     table = arguments["--table"]
     if table is None:
         table = os.path.join(folder, 'PAIRS', 'table_pairs.txt')
-
-
-    # First Graphic (/Pair):
-    # need mean/sigma per raster for H/V/NCC and % correlated px per raster
-    # Scatter plot - x: Bt, y: mean, size: sigma, color: period
-
-
-    # Second Graphic (/Pixel):
-    # need mean/sigma per raster for H/V/NCC and % correlated px per pixel
-    # 7 raster plots for each
     
     
