@@ -126,6 +126,31 @@ def plot_da_wet_dry(folder, wet, dry):
     savefig(os.path.join(folder, "FIGURES", "ampli_dry_minus_wet.pdf"))
 
 
+def plot_da_monthly(folder, subsets, reference):
+    means, das = [[] for _ in range(12)], [[] for _ in range(12)]
+    for i, s in enumerate(subsets):
+        print(i + 1, "/12 months")
+        if len(s) > 0:
+            mean, da = compute_mean_da(folder, s)
+            means[i] = mean.flatten()
+            das[i] = da.flatten()
+            # fig, ax = plt.subplot(111)
+            # plot_raster(da, "da", ax)
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+    ax1.violinplot(means)
+    ax2.violinplot(das)
+    plt.show()
+
+    if ref is not None:
+        means = np.array(means)[:, ref[2]:ref[3], ref[0]:ref[1]]
+        das = np.array(das)[:, ref[2]:ref[3], ref[0]:ref[1]]
+        fig, (ax1, ax2) = plt.subplot(121)
+        ax1.violinplot(means)
+        ax2.violinplot(das)
+        plt.show()
+
+
+
 def savefig(path):
     plt.tight_layout()
     print("Saving:", path)
@@ -142,8 +167,8 @@ if __name__ == "__main__":
     if table is None:
         table = os.path.join(folder, 'PAIRS', 'table_pairs.txt')
 
-    plot_geotiff(folder)
-    savefig(os.path.join(folder, "FIGURES", "ampli.pdf"))
+    # plot_geotiff(folder)
+    # savefig(os.path.join(folder, "FIGURES", "ampli.pdf"))
 
     pairs = read_pairs_file(table)
     dates = list(set(pairs.flatten()))
@@ -153,7 +178,12 @@ if __name__ == "__main__":
     dates_wet = dates[wet]
     dates_dry = dates[~wet]
 
-    plot_da_wet_dry(folder, dates_wet, dates_dry)
+    dates_monthly = [[] for _ in range(12)]
+    months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+    for k in range(12):
+        dates_monthly[k] = [d for d in dates if d[4:6] == months[k]]
 
+    # plot_da_wet_dry(folder, dates_wet, dates_dry)
 
+    plot_da_monthly(folder, dates_monthly, ref)
     

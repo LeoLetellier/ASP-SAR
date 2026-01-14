@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-figure_pairs.py
+figure_ts.py
 ------------
 
-Usage: figure_pairs.py <aspsar> [--ref=<ref> --table=<table>]
+Usage: figure_ts.py <nsbas> [--ref=<ref> --table=<table>]
 
 Options:
 -h | --help         Show this screen
@@ -78,12 +78,13 @@ def savefig(path):
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
-    folder = arguments["<aspsar>"]
+    folder = arguments["<nsbas>"]
     ref = arguments["--ref"]
     if ref is not None:
         ref = [int(k) for k in ref.split(',', 4)]
     table = arguments["--table"]
     if table is None:
         table = os.path.join(folder, 'PAIRS', 'table_pairs.txt')
+
     
     

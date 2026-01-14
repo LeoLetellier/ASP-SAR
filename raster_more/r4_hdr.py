@@ -47,9 +47,12 @@ def ensure_gdal_header(file, lectfile=None, ndates=None):
     except:
         if lectfile is None:
             lectfile = "lect.in"
-        if os.path.isfile(lectfile):
-            dims = read_lectfile(lectfile, ndates)
-            generate_header(file, dims)
+        elif type(lectfile) is str:
+            if os.path.isfile(lectfile):
+                dims = read_lectfile(lectfile, ndates)
+                generate_header(file, dims)
+        elif type(lectfile) is list:
+            generate_header(file, lectfile)
         else:
             raise ValueError('Cannot read raster:', file)
         
@@ -58,4 +61,6 @@ if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     infile = arguments["<infile>"]
     lectfile = arguments["<lectfile>"]
+    if "," in lectfile:
+        lectfile = [float(k) for k in lectfile.split(",")]
     ensure_gdal_header(infile, lectfile=lectfile)

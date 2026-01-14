@@ -53,6 +53,7 @@ def open_baselines(file):
     data = np.genfromtxt(file, skip_header=7, dtype=str)
     baselines = []
     for d in data:
+        print(d)
         pair = Pair(d[0], d[1], float(d[7]), float(d[8]))
         baselines.append(pair)
     return baselines
@@ -165,7 +166,10 @@ if __name__ == "__main__":
     
     # 3 months baselines
     s = select_bt(pairs, 91.3125, epsilon=epsilon)
-    s = filter_pselection_per_bp(s, pdates, maxperdate + 1)
+    limit = None
+    if maxperdate is not None:
+        limit = maxperdate + 1
+    s = filter_pselection_per_bp(s, pdates, limit)
     selected_pairs += s
     print("3m: {}".format(len(s)))
 
@@ -188,14 +192,14 @@ if __name__ == "__main__":
     selected_pairs = list(set(selected_pairs))
     print("Removing redondant pairs (-{})".format(before_reduction - len(selected_pairs)))
 
-    removing_pairs = []
-    for d in pdates:
-        p = select_pair_per_date(selected_pairs, d)
-        if len(p) <= 2:
-            removing_pairs += select_pair_per_date(selected_pairs, d)
-    removing_pairs = list(set(removing_pairs))
-    print("Reducing number of pairs per date (-{})".format(len(removing_pairs)))
-    selected_pairs = [p for p in selected_pairs if p not in removing_pairs]
+    # removing_pairs = []
+    # for d in pdates:
+    #     p = select_pair_per_date(selected_pairs, d)
+    #     if len(p) <= 2:
+    #         removing_pairs += select_pair_per_date(selected_pairs, d)
+    # removing_pairs = list(set(removing_pairs))
+    # print("Reducing number of pairs per date (-{})".format(len(removing_pairs)))
+    # selected_pairs = [p for p in selected_pairs if p not in removing_pairs]
 
     print("Writing {} pairs: {}".format(len(selected_pairs), table))
     write_table(table, selected_pairs)

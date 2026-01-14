@@ -28,7 +28,7 @@ class Pair:
         self.bt = bt
 
     def get_line(self) -> str:
-        return "\n{}\t{}\t{}\t\t{}\n".format(self.date1, self.date2, self.bp, self.bt)
+        return "\n{}\t{}\t{}\t\t{}".format(self.date1, self.date2, self.bp, self.bt)
     
     def __eq__(self, value):
         return (self.date1, self.date2, self.bp, self.bt) == (value.date1, value.date2, value.bp, value.bt)
