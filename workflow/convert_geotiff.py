@@ -31,6 +31,7 @@ from skimage.filters.rank import entropy
 from skimage.morphology import disk
 from tqdm import tqdm
 
+gdal.UseExceptions()
 
 def save_to_file(data, output_path, crop=None, ndv=9999):
     drv = gdal.GetDriverByName('GTiff')
@@ -44,7 +45,7 @@ def save_to_file(data, output_path, crop=None, ndv=9999):
     dst_band.WriteArray(data)
 
 
-def convert_single_file(input_file, img_dim, crop=None, mode='log'):
+def convert_single_file(input_file, img_dim, crop=None, mode='db'):
     filename = input_file
     output_dir = os.path.dirname(os.path.abspath(input_file))
     geotiff_dir = os.path.join(output_dir, 'GEOTIFF')
@@ -59,7 +60,9 @@ def convert_single_file(input_file, img_dim, crop=None, mode='log'):
 
     output_path_log = os.path.join(geotiff_dir, '{}_log.tif'.format(os.path.basename(input_file)))
 
-    if mode == 'rescale_intensity':
+    if mode == 'db':
+        amp = 10 * np.log10(amp)
+    elif mode == 'rescale_intensity':
         p2, p98 = np.nanpercentile(amp, (2, 98))
         amp = exposure.rescale_intensity(amp, in_range=(p2, p98))
     elif mode == 'equalize_hist':
@@ -138,13 +141,13 @@ def get_mean_sigma_amplitude(geotiff_dir, img_dim, corrupt_file_df, crop=None):
     save_to_file(stack, os.path.join(geotiff_dir, 'AMPLI_MEAN.tif'), crop=crop)
     save_to_file(sigma, os.path.join(geotiff_dir, 'AMPLI_SIGMA.tif'), crop=crop)
     save_to_file(da, os.path.join(geotiff_dir, 'AMPLI_DA.tif'), crop=crop)
-    save_to_file(decorr_px, os.path.join(geotiff_dir, 'DECORR_PIXEL.tif', crop=crop))
+    save_to_file(decorr_px, os.path.join(geotiff_dir, 'DECORR_PIXEL.tif'), crop=crop)
 
     save_to_file(stack_norm, os.path.join(geotiff_dir, 'AMPLI_MEAN_NORM.tif'), crop=crop)
     save_to_file(sigma_norm, os.path.join(geotiff_dir, 'AMPLI_SIGMA_NORM.tif'), crop=crop)
 
 
-def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):
+def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode='db'):
     for f in os.listdir(input_path):
         if(os.path.splitext(f)[1] == '.mod'):
             img_dims = get_img_dimensions(os.path.join(input_path, f))
@@ -179,7 +182,7 @@ def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):
     print('############################')
 
     # only process non existing files 
-    for f in os.listdir(input_path):
+    for f in tqdm(os.listdir(input_path)):
         if(os.path.splitext(f)[1] == '.mod'):
             if(os.path.isfile(os.path.join(geotiff_dir, '{}_log.tif'.format(f)))):
                 continue
@@ -189,7 +192,7 @@ def convert_all(input_path, all_file_df, geotiff_dir, s1, crop=None, mode=log):
                     print('corrupt:', f)
                     continue
                 else:
-                    print('Start processing: {}'.format(f))
+                    # print('Start processing: {}'.format(f))
                     convert_single_file(os.path.join(input_path, f), IMG_DIM, crop=crop, mode=mode)
 
 

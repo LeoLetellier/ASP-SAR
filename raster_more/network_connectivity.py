@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-figure_pairs.py
+network_connectivity.py
 ------------
 
-Usage: figure_pairs.py <table> [--save-dir=<save-dir>]
+Usage: network_connectivity.py <table> [--save-dir=<save-dir>]
 
 Options:
 -h | --help         Show this screen
@@ -47,11 +47,24 @@ if __name__ == "__main__":
     dates2 = pairs[:, 1]
     all_dates = list(set(list(dates1) + list(dates2)))
     print("Number of dates", len(all_dates))
+    all_dates.sort()
+
+    # Connections per date
+    connection_date = np.zeros(len(all_dates))
+    for d in range(len(all_dates)):
+        count = 0
+        for k in dates1:
+            if k == all_dates[d]:
+                count += 1
+        for k in dates2:
+            if k == all_dates[d]:
+                count += 1
+        connection_date[d] = count
 
     dates1 = [datetime.strptime(d, "%Y%m%d") for d in dates1]
     dates2 = [datetime.strptime(d, "%Y%m%d") for d in dates2]
+    bt = [(d2 - d1).days for (d2, d1) in zip(dates2, dates1)]
     all_dates = [datetime.strptime(d, "%Y%m%d") for d in all_dates]
-    all_dates.sort()
 
     step_count = np.zeros((13, len(all_dates) - 1))
     for d in range(len(all_dates) - 1):
@@ -95,21 +108,24 @@ if __name__ == "__main__":
 
     all_dates = np.array(all_dates)
     inter = all_dates[:-1] + (all_dates[:-1] - all_dates[1:]) / 2
+    inter = [(start + (end - start) / 2) for start, end in zip(all_dates[:-1], all_dates[1:])]
     cumtot = np.sum(step_count, axis=0)
     cmap = cm.navia
     bounds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     # colors = [cmap(k) for k in bounds]
     colors = [cmap(k / 12) for k in range(13)]
     bottom = np.zeros(len(all_dates) - 1)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(12,8))
     for k in range(13):
         cum = np.sum(step_count[:k + 1], axis=0)
         ax.fill_between(inter, cum, bottom, color=colors[k])
         bottom = cum
     ax.plot(inter, cumtot, color='k')
+    ax.plot(all_dates, 3 * np.ones(shape=len(all_dates)), color='firebrick', alpha=0.7, ls='--')
+    ax.plot(all_dates, connection_date, color='lightcoral', alpha=0.8, lw=3)
     ax.set_title("Pair Coverage")
     ax.set_xlabel("Date Interval Centered")
-    ax.set_ylabel("Pair Count")
+    ax.set_ylabel("Pair Count (Stack) / Date Connectivity (Curve)")
     
     divider = make_axes_locatable(ax)
     c = divider.append_axes("right", size="5%", pad=0.05)

@@ -5,7 +5,7 @@ amster2aspsar.py
 --------------
 Prepare the directory structure for further processing. Link all ALL2GIF results in the given destination dir.
 
-Usage: amster2aspsar.py <amster> <aspsar> [--s1] [--crop=<crop>] [--mode=<mode>]
+Usage: amster2aspsar.py <amster> <aspsar> [--s1] [--crop=<crop>] [--mode=<mode>] [--stack-bt=<stack-bt>]
 amster2aspsar.py -h | --help
 
 Options:
@@ -20,6 +20,7 @@ Options:
 from workflow.check_all2gif import check_for_empty_files
 from workflow.prepare_correl_dir import prepare_dir_list, link_files, save_az_range_sampling
 from workflow.convert_geotiff import convert_all
+from workflow.stack_tif import stack_tif
 
 import os
 import docopt
@@ -36,7 +37,8 @@ if __name__ == "__main__":
         crop = [int(c) for c in crop.split(",")[:4]]
     mode = arguments["--mode"]
     if mode is None:
-        mode = 'log'
+        mode = 'db'
+    minimal_bt = arguments["--stack-bt"]
 
     if len(check_for_empty_files(sm_dir)) >= 1:
         print("files are empty or inconsistent!")
@@ -66,6 +68,9 @@ if __name__ == "__main__":
 
     all_file_df = pd.DataFrame(columns=['file', 'ncol', 'nrow'])
     convert_all(working_dir, all_file_df, geotiff_dir, s1, crop=crop, mode=mode)
+
+    if minimal_bt is not None:
+        stack_tif(working_dir, float(minimal_bt))
 
     print("AMSTER to ASPSAR: done")
     
