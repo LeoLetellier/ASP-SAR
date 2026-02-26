@@ -22,7 +22,7 @@ Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
 [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
 [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
 [--bg=<bg>] [--alpha=<alpha>] [--vario] [--samples=<samples>] [--dlag=<dlag>] [--nlag=<nlag>] [--model=<model>] \
-[--res=<res>]
+[--res=<res>] [--no-plot]
 
 
 Options:
@@ -584,6 +584,15 @@ if __name__ == "__main__":
     elif file_format == 'GAMMA':
         data, driver, x, y, b, dtype = open_band_gamma(infile, param_file, crop)
 
+    if data[0].shape[0] * data[0].shape[1] > 30e6:
+        print("The raster contain more than 30 MP. Consider restrain the crop or using an overview instead:")
+        print("gdaladdo -ro {} {}".format(
+            infile,
+            4
+        ))
+        print("rplot {}".format(infile + ".ovr"))
+        print()
+
     display_raster_format(infile, driver, x, y, b, dtype)
 
     bg = arguments["--bg"]
@@ -615,5 +624,6 @@ if __name__ == "__main__":
         res = arg2value(arguments["--res"], conversion=lambda x: x.split(',')[:2], default=[1, 1])
         plot_vario(data[0], [float(res[0]), float(res[1])], model, samples ,dlag, nlag)
 
-    plt.show()
+    if not arguments["--no-plot"]:
+        plt.show()
     

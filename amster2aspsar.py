@@ -25,6 +25,7 @@ from workflow.stack_tif import stack_tif
 import os
 import docopt
 import pandas as pd
+import numpy as np
 
 
 if __name__ == "__main__":
@@ -40,12 +41,17 @@ if __name__ == "__main__":
         mode = 'db'
     minimal_bt = arguments["--stack-bt"]
 
+    discard_file = os.path.join(working_dir, "image_discard.txt")
+    discard_image = []
+    if os.path.isfile(discard_file):
+        discard_image = np.loadtxt(discard_file, dtype=str, unpack=True, usecols=(0))
+        print("will discard:", discard_image)
+
     if len(check_for_empty_files(sm_dir)) >= 1:
         print("files are empty or inconsistent!")
         # raise Exception('Check ALL2GIF directories')
     
-    data_path_list = prepare_dir_list(sm_dir)
-
+    data_path_list = prepare_dir_list(sm_dir, discard=discard_image)
     if len(data_path_list) == 0:
         raise ValueError("data_path_list is empty, no file to process, have you used sm directory ?")
 

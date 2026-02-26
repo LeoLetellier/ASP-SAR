@@ -4,7 +4,7 @@
 amster_generate_network.py
 ------------
 
-Usage: amster_generate_network.py <table1> <table2> --outfile=<outfile>
+Usage: amster_generate_network.py <tables>... --outfile=<outfile>
 
 Options:
 -h | --help         Show this screen
@@ -58,14 +58,15 @@ def open_table(file):
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
 
-    table1 = arguments["<table1>"]
-    table2 = arguments["<table2>"]
+    tables = arguments["<tables>"]
     outfile = arguments["--outfile"]
 
-    pairs1 = open_table(table1)
-    pairs2 = open_table(table2)
+    pairs = [open_table(t) for t in tables]
+    # print(tables[0], pairs[0])
 
-    all_pairs = pairs1 + pairs2
+    all_pairs = []
+    for p in pairs:
+        all_pairs += p
     all_pairs = list(set(all_pairs))
 
     print("Merging tables into: {}".format(outfile))

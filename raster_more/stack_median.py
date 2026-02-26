@@ -4,7 +4,7 @@
 stack_median.py
 ------------
 
-Usage: stack_median.py <rasters>... --outfile=<outfile>
+Usage: stack_median.py <rasters>... --outfile=<outfile> [--no-shell]
 
 Options:
 -h | --help         Show this screen
@@ -27,6 +27,7 @@ if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     rasters = arguments["<rasters>"]
     outfile = arguments["--outfile"]
+    no_shell = arguments["--no-shell"]
     
     raster_entry = ""
     letters = []
@@ -43,6 +44,7 @@ if __name__ == "__main__":
         outfile
     )
 
-    print(">>", cmd)
+    if not no_shell:
+        print(">>", cmd)
     sh(cmd)
 

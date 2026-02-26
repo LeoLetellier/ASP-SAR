@@ -138,4 +138,10 @@ if __name__ == "__main__":
     plt.tight_layout()
     if save is not None:
         plt.savefig(os.path.join(save, os.path.splitext(table) + "_connectivity.pdf", dpi=300))
+
+
+    plt.figure()
+    plt.hist(bt, bins=int(np.max(np.abs(np.asarray(bt))) / 10), color='k')
+    plt.xlabel("Temporal baseline (days)")
+    plt.ylabel("Number of pairs")
     plt.show()

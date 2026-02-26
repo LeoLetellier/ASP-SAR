@@ -28,29 +28,33 @@ def check_for_empty_files(all2gif_dir, do_print=False):
         if(os.path.isdir(os.path.join(all2gif_dir, d)) and d[0] == '2'):
             is_empty = False
             insar_param_file = os.path.join(all2gif_dir, d, 'i12', 'TextFiles', 'InSARParameters.txt')
-            with open(insar_param_file, 'r') as f:
-                lines = [''.join(l.strip().split('\t\t')[0]) for l in f.readlines()]
-                jump_index = lines.index('/* -5- Interferometric products computation */')
-                img_dim = lines[jump_index + 2: jump_index + 4]
+            if not os.path.isfile(insar_param_file):
+                print(">> Missing param file", insar_param_file)
+                out += [d]
+            else:
+                with open(insar_param_file, 'r') as f:
+                    lines = [''.join(l.strip().split('\t\t')[0]) for l in f.readlines()]
+                    jump_index = lines.index('/* -5- Interferometric products computation */')
+                    img_dim = lines[jump_index + 2: jump_index + 4]
 
-                ncol, nrow = int(img_dim[0].strip()), int(img_dim[1].strip())
-                if ncol == 0 or nrow == 0:
-                    if do_print:
-                        print(">> EMPTY:", d)
-                    out += [d]
-                elif refcol is not None and refrow is not None:
-                    if ncol != refcol or nrow != refrow:
+                    ncol, nrow = int(img_dim[0].strip()), int(img_dim[1].strip())
+                    if ncol == 0 or nrow == 0:
                         if do_print:
-                            print('>> INCONSISTENT SIZE: ({}, {}):'.format(ncol, nrow), d)
+                            print(">> EMPTY:", d)
                         out += [d]
+                    elif refcol is not None and refrow is not None:
+                        if ncol != refcol or nrow != refrow:
+                            if do_print:
+                                print('>> INCONSISTENT SIZE: ({}, {}):'.format(ncol, nrow), d)
+                            out += [d]
+                        else:
+                            print("ok: {}".format(d))
                     else:
+                        refcol = ncol
+                        refrow = nrow
+                        if do_print:
+                            print("REF SIZE: ({}, {})".format(ncol, nrow))
                         print("ok: {}".format(d))
-                else:
-                    refcol = ncol
-                    refrow = nrow
-                    if do_print:
-                        print("REF SIZE: ({}, {})".format(ncol, nrow))
-                    print("ok: {}".format(d))
     if is_empty:
         print("There is no target in this folder. Take a deep breath and try again in another folder")
     return out
@@ -67,5 +71,6 @@ if __name__ == "__main__":
         print('Everything should be fine, can continue with process_stereo')
     else:
         print('Check following directories; adjust LLRGCO & LLAZCO and process ALL2GIF again')
+        print("THere is {} folders with problematic data".format(len(empty_files)))
         for d in empty_files:
             print(os.path.join(all2gif_dir, d))

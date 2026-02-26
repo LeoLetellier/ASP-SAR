@@ -4,7 +4,7 @@
 amster_generate_network.py
 ------------
 
-Usage: amster_generate_network.py <table> [<baselines>] --maxbp=<maxbp> --maxbt=<maxbt> --minbt=<minbt> [--epsilon=<epsilon>] [--maxperdate=<maxperdate>] [--add-connectivity] [--add-3-6-months] [--restrain-nb]
+Usage: amster_generate_network.py <table> [<baselines>] --maxbp=<maxbp> --maxbt=<maxbt> --minbt=<minbt> [--epsilon=<epsilon>] [--maxperdate=<maxperdate>] [--add-connectivity] [--add-3-6-months] [--restrain-nb] [--multiyear-only]
 
 Options:
 -h | --help         Show this screen
@@ -112,7 +112,7 @@ def filter_pselection_per_bp(selection, dates, limit, square=False):
 
 
 def nb_allowed_bt(length, total_duration):
-    return 6 / length * total_duration
+    return 10 / length * total_duration
 
 
 def central_date(date1, date2):
@@ -160,6 +160,7 @@ if __name__ == "__main__":
     do_connectivity = arguments["--add-connectivity"]
     do_3_6 = arguments["--add-3-6-months"]
     restrain_nb = arguments["--restrain-nb"]
+    do_multiyear_only = arguments["--multiyear-only"]
 
     print("Fetching pairs: {}".format(baselines))
     pairs = open_baselines(baselines)
@@ -182,30 +183,31 @@ if __name__ == "__main__":
         selected_pairs += s
         print("{}Y: {}".format(k, len(s)))
 
-    # selected_pairs = filter_pselection_per_bp(selected_pairs, pdates, maxperdate, square=True)
-    # 1 year baselines
-    s = select_bt(pairs, k * 365.25, epsilon=epsilon * 0.90)
-    s = filter_pselection_per_bp(s, pdates, maxperdate)
-    if restrain_nb:
-        s = reduce_to_allowed_number(s, k, duration_year)
-    selected_pairs += s
-    print("1Y: {}".format(len(s)))
-
-    if do_3_6:
-        # 6 months baselines
-        s = select_bt(pairs, 182.625, epsilon=epsilon)
+    if not do_multiyear_only:
+        # selected_pairs = filter_pselection_per_bp(selected_pairs, pdates, maxperdate, square=True)
+        # 1 year baselines
+        s = select_bt(pairs, 365.25, epsilon=epsilon * 0.90)
         s = filter_pselection_per_bp(s, pdates, maxperdate)
+        if restrain_nb:
+            s = reduce_to_allowed_number(s, 1, duration_year)
         selected_pairs += s
-        print("6m: {}".format(len(s)))
-        
-        # 3 months baselines
-        s = select_bt(pairs, 91.3125, epsilon=epsilon)
-        limit = None
-        if maxperdate is not None:
-            limit = maxperdate + 1
-        s = filter_pselection_per_bp(s, pdates, limit)
-        selected_pairs += s
-        print("3m: {}".format(len(s)))
+        print("1Y: {}".format(len(s)))
+
+        if do_3_6:
+            # 6 months baselines
+            s = select_bt(pairs, 182.625, epsilon=epsilon)
+            s = filter_pselection_per_bp(s, pdates, maxperdate)
+            selected_pairs += s
+            print("6m: {}".format(len(s)))
+            
+            # 3 months baselines
+            s = select_bt(pairs, 91.3125, epsilon=epsilon)
+            limit = None
+            if maxperdate is not None:
+                limit = maxperdate + 1
+            s = filter_pselection_per_bp(s, pdates, limit)
+            selected_pairs += s
+            print("3m: {}".format(len(s)))
 
     if do_connectivity:
         # 1 month baselines

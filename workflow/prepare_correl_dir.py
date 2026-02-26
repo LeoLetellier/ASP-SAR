@@ -36,7 +36,7 @@ def filter_mod_files(input_file):
     return not (ncol == 0 or nrow == 0)
 
 
-def prepare_dir_list(input_path):
+def prepare_dir_list(input_path, discard=[]):
     """Retrieve all valid mod files"""
     data_dirs_paths = [os.path.join(input_path, d, 'i12', 'InSARProducts') for d in os.listdir(input_path) if os.path.isdir(os.path.join(input_path, d, 'i12', 'InSARProducts'))]
     data_dirs_paths = list(set(data_dirs_paths))
@@ -48,7 +48,9 @@ def prepare_dir_list(input_path):
         for f in os.listdir(d):
             file = os.path.join(d, f)
             if(os.path.splitext(file)[1] == '.mod'):
-                if file not in out_list and filter_mod_files(file):
+                if os.path.basename(os.path.splitext(file)[0]).split('_')[2] in discard:
+                    print("image will be discarded because indicated in image_discard.txt:", file)
+                elif file not in out_list and filter_mod_files(file):
                     out_list.append(file)
                     print("keep", file)
                 else:
