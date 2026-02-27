@@ -204,7 +204,7 @@ def deramp(data):
     return data - ramp
 
 
-def correct_disparity_sh(path, target, band_disp=1, band_ndv=3, sampling=1, disp_path = None, do_deramp=True):
+def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling=1, disp_path = None, do_deramp=True):
     if disp_path is None:
         disp_path = path
     
@@ -234,10 +234,18 @@ def correct_disparity_sh(path, target, band_disp=1, band_ndv=3, sampling=1, disp
         #     current_file,
         #     target + "_deramp.tif"
         # )
-        cmd2 = '''remove_quad_ramp2.py {} {} --chunk-size=4096,4096'''.format(
-            current_file,
-            target + "_deramp.tif"
-        )
+        dem = os.path.join(folder, "radar_dem.tif")
+        if os.path.isfile(dem):
+            cmd2 = '''remove_topo_ramp.py {} {} --chunk-size=4096,4096 --dem={}'''.format(
+                current_file,
+                target + "_deramp.tif",
+                dem
+            )
+        else:
+            cmd2 = '''remove_topo_ramp.py {} {} --chunk-size=4096,4096'''.format(
+                current_file,
+                target + "_deramp.tif"
+            )
         print(cmd2)
         sh(cmd2)
         current_file = target + "_deramp.tif"
@@ -405,19 +413,19 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, cc_mask, da_ma
             if os.path.isfile(H_target):
                     print('Skip {}, already exists'.format(H_target))
             else:
-                correct_disparity_sh(disp_path, H_target, sampling=rg_sampl, band_disp=1)
+                correct_disparity_sh(working_dir, disp_path, H_target, sampling=rg_sampl, band_disp=1)
                 # correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl, cc_mask=cc_mask, da_mask=da_mask, ref_area=ref_area)
             
             if os.path.isfile(V_target):
                 print('Skip {}, already exists'.format(V_target))
             else:
-                correct_disparity_sh(disp_path, V_target, sampling=az_sampl, band_disp=2)
+                correct_disparity_sh(working_dir, disp_path, V_target, sampling=az_sampl, band_disp=2)
                 # correct_disparity(disp_path, H_target, band_disp=2, sampling=az_sampl, cc_mask=cc_mask, da_mask=da_mask, ref_area=ref_area)
             
             if os.path.isfile(NCC_target):
                 print('Skip {}, already exists'.format(NCC_target))
             else:
-                correct_disparity_sh(ncc_path, NCC_target, do_deramp=False, disp_path=disp_path)
+                correct_disparity_sh(working_dir, ncc_path, NCC_target, do_deramp=False, disp_path=disp_path)
                 # correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path, cc_mask=cc_mask, da_mask=da_mask, do_deramp=False)
 
             # print('Finished pair: {}'.format(os.path.basename(d)))

@@ -331,9 +331,10 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
     cross = None
     if cols is not None and lines is not None:
         cross = [[int(k) for k in cols.split(",")], [int(k) for k in lines.split(",")]]
-        if crop is not None:
-            cross[0] = [k - crop[0] for k in cross[0]]
-            cross[1] = [k - crop[2] for k in cross[1]]
+        # No need for the following corrections since the origin of the graph is correted directly
+        # if crop is not None:
+        #     cross[0] = [k - crop[0] for k in cross[0]]
+        #     cross[1] = [k - crop[2] for k in cross[1]]
 
     title = arg2value(arguments["--title"], default=arguments["<infile>"])
 

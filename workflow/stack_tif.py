@@ -67,7 +67,7 @@ def stack_tif(folder, minimal_bt):
             #     print(central_stacks[-1])
             #     print(len(central_stacks[-1]))
             #     print()
-            cmd = "stack_median.py {} --outfile={}".format(
+            cmd = "stack_median.py {} --outfile={} --no-nodata".format(
                 " ".join([folder + "/GEOTIFF/" + s for s in stack_name]),
                 outfile
             )

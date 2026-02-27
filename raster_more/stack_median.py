@@ -4,7 +4,7 @@
 stack_median.py
 ------------
 
-Usage: stack_median.py <rasters>... --outfile=<outfile> [--no-shell]
+Usage: stack_median.py <rasters>... --outfile=<outfile> [--no-shell] [-no-nodata]
 
 Options:
 -h | --help         Show this screen
@@ -28,6 +28,7 @@ if __name__ == "__main__":
     rasters = arguments["<rasters>"]
     outfile = arguments["--outfile"]
     no_shell = arguments["--no-shell"]
+    no_nodata = arguments["--no-nodata"]
     
     raster_entry = ""
     letters = []
@@ -38,11 +39,19 @@ if __name__ == "__main__":
     
     calc = "numpy.median([{}], axis=0)".format(", ".join(letters))
 
+    
     cmd = '''gdal_calc{} --calc="{}" --outfile={}'''.format(
         raster_entry,
         calc,
         outfile
     )
+
+    if no_nodata:
+        cmd = '''gdal_calc{} --calc="{}" --outfile={} --NoDataValue=none'''.format(
+            raster_entry,
+            calc,
+            outfile
+        )
 
     if not no_shell:
         print(">>", cmd)
