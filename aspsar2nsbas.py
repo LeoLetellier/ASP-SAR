@@ -121,8 +121,6 @@ def generate_hdr(target, ncol, nrow, nband=1):
     with open(os.path.splitext(target)[0] + '.hdr', "w") as hdr_file:
         hdr_file.write("""\
 ENVI
-description = {
-/data3/processing/ASP-OPT/pleiades/BhoteKoshi/EXPORT/H/H_20140101_20160111.r4}
 samples = {}
 lines   = {}
 bands   = {}
@@ -223,7 +221,7 @@ def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling
         sampling,
         target + "_meters.tif"
     )
-    print(cmd1)
+    logger.debug(cmd1)
     sh(cmd1)
     current_file = target + "_meters.tif"
     intermediary_files.append(current_file)
@@ -235,47 +233,50 @@ def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling
         #     target + "_deramp.tif"
         # )
         dem = os.path.join(folder, "radar_dem.tif")
-        if os.path.isfile(dem):
-            cmd2 = '''remove_topo_ramp.py {} {} --chunk-size=4096,4096 --dem={}'''.format(
+        aspect = os.path.join(folder, "dem_west_aspect.tif")
+        if os.path.isfile(aspect):
+            logger.debug("remove aspect ramp")
+            cmd2 = '''deramp_ransac.py {} --outfile={} --chunk-size=4096 --add-data={} --cyclic-data --save-coeffs --ramp=linear'''.format(
                 current_file,
                 target + "_deramp.tif",
-                dem
+                aspect
             )
         else:
+            logger.debug("remove ramp without topo")
             cmd2 = '''remove_topo_ramp.py {} {} --chunk-size=4096,4096'''.format(
                 current_file,
                 target + "_deramp.tif"
             )
-        print(cmd2)
+        logger.debug(cmd2)
         sh(cmd2)
         current_file = target + "_deramp.tif"
         intermediary_files.append(current_file)
 
-    # if rm_med:
-    #     # (3) Reference to median
-    #     cmd3 = '''gdal_calc -A {} --calc="A - numpy.nanmed(A)" --outfile={}'''.format(
-    #         target + "_deramp.tif",
-    #         target + "_referenced.tif"
-    #     )
-    #     print(cmd3)
-    #     sh(cmd3)
+    # (3) Reference to median
+    cmd3 = '''gdal_calc -A {} --calc="A - numpy.nanmed(A)" --outfile={}'''.format(
+        current_file,
+        target + "_referenced.tif"
+    )
+    current_file = target + "_referenced.tif"
+    print(cmd3)
+    sh(cmd3)
 
     # (4) Translate to ENVI
     cmd4 = '''gdal_translate {} {} -of ENVI'''.format(
         current_file,
         target
     )
-    print(cmd4)
+    logger.debug(cmd4)
     sh(cmd4)
 
     # (5) Generate .rsc header
-    print("gen header")
+    logger.debug("gen header")
     generate_rsc(target, nrow, ncol)
 
     # (6) Remove intermediate files
-    print("rm files")
-    for f in intermediary_files:
-        os.remove(f)
+    logger.debug("rm files")
+    # for f in intermediary_files:
+    #     os.remove(f)
 
 
 def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=True, cc_mask=True, da_mask=None, disp_path = None, do_deramp=True, ref_area=None):
@@ -399,6 +400,7 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, cc_mask, da_ma
     
     for i, d in enumerate(tqdm(dir_list)):
         # print('Start pair ({}/{}): {}'.format(i+1, len(dir_list), os.path.basename(d)))
+        logger.debug("Starting pair {}: {}".format(i + 1, os.path.basename(d)))
         curr_pair = os.path.basename(d)
         # find filtered and NCC results
         disp_path = join(d, 'stereo-F.tif')
@@ -411,27 +413,30 @@ def retrieve_disparity(dir_list, working_dir, rg_sampl, az_sampl, cc_mask, da_ma
         
         if(os.path.isfile(disp_path)):
             if os.path.isfile(H_target):
-                    print('Skip {}, already exists'.format(H_target))
+                    logger.info('Skip {}, already exists'.format(H_target))
             else:
+                logger.debug("Correct disparity H")
                 correct_disparity_sh(working_dir, disp_path, H_target, sampling=rg_sampl, band_disp=1)
                 # correct_disparity(disp_path, H_target, band_disp=1, sampling=rg_sampl, cc_mask=cc_mask, da_mask=da_mask, ref_area=ref_area)
             
             if os.path.isfile(V_target):
-                print('Skip {}, already exists'.format(V_target))
+                logger.info('Skip {}, already exists'.format(V_target))
             else:
+                logger.debug("Correct disparity V")
                 correct_disparity_sh(working_dir, disp_path, V_target, sampling=az_sampl, band_disp=2)
                 # correct_disparity(disp_path, H_target, band_disp=2, sampling=az_sampl, cc_mask=cc_mask, da_mask=da_mask, ref_area=ref_area)
             
             if os.path.isfile(NCC_target):
-                print('Skip {}, already exists'.format(NCC_target))
+                logger.info('Skip {}, already exists'.format(NCC_target))
             else:
+                logger.debug("Correct disparity NCC")
                 correct_disparity_sh(working_dir, ncc_path, NCC_target, do_deramp=False, disp_path=disp_path)
                 # correct_disparity(ncc_path, NCC_target, rm_med=False, disp_path=disp_path, cc_mask=cc_mask, da_mask=da_mask, do_deramp=False)
 
             # print('Finished pair: {}'.format(os.path.basename(d)))
             valid_pairs.append(os.path.basename(d))
         else:
-            print('No correl-F.tif file found in {}'.format(curr_pair))
+            logger.info('No correl-F.tif file found in {}'.format(curr_pair))
             missing_correl_file = os.path.join(correl_dir, 'missing_correl_files.txt')
             mode = 'a' if os.path.isfile(missing_correl_file) else 'w'
             with open(missing_correl_file, mode) as miss_file:
@@ -522,7 +527,7 @@ if __name__ == "__main__":
     Path(join(work_dir, 'EXPORT')).mkdir(parents=True, exist_ok=True)
 
     if(force):
-        print('FORCE RECOMPUTATION: REMOVE EXPORT DIRS')
+        logger.info('FORCE RECOMPUTATION: REMOVE EXPORT DIRS')
     check_dirs(work_dir, force=force)
 
     # retrieve the dates folder YYYYMMDD_YYYYMMDD (17 chars)
@@ -530,17 +535,17 @@ if __name__ == "__main__":
     dir_list = [join(correl_dir, d) for d in os.listdir(correl_dir)]
     dir_list.sort()
 
-    print('##################################')
-    print('PROCESS AND COPY DISPARITY MAPS')
-    print('##################################')
+    logger.info('##################################')
+    logger.info('PROCESS AND COPY DISPARITY MAPS')
+    logger.info('##################################')
 
     pairs = retrieve_disparity(dir_list, work_dir, range_sampl, az_sampl, cc_mask=cc_mask, da_mask=da_mask, da_file=da_file, ref_area=ref_area)
 
-    print(">> >> PAIRS", pairs)
+    logger.info(">> >> PAIRS", pairs)
 
-    print('##################################')
-    print('PREPARE NSBAS')
-    print('##################################')
+    logger.info('##################################')
+    logger.info('PREPARE NSBAS')
+    logger.info('##################################')
 
     nsbas_process_dir = join(work_dir, 'NSBAS_PROCESS')
     Path(nsbas_process_dir).mkdir(parents=True, exist_ok=True)
@@ -549,10 +554,10 @@ if __name__ == "__main__":
     pair_table = join(work_dir, "PAIRS", "table_pairs.txt")
     date_list_file = join(nsbas_process_dir, 'dates_list.txt')
 
-    print('START PREPARING H DIRECTORY')
+    logger.info('START PREPARING H DIRECTORY')
     prepare_nsbas_dir(work_dir, nsbas_process_dir, 'H', pair_table, date_list_file)
-    print('FINISHED H')
+    logger.info('FINISHED H')
 
-    print('START PREPARING V DIRECTORY')
+    logger.info('START PREPARING V DIRECTORY')
     prepare_nsbas_dir(work_dir, nsbas_process_dir, 'V', pair_table, date_list_file)
-    print('FINISHED V')
+    logger.info('FINISHED V')

@@ -41,7 +41,7 @@ def open_gdal(path, band=1, chunk=None):
     return data
 
 
-def open_gdal_reduced(path, band=1, size=None, resample_alg=gdal.GRIORA_NearestNeighbour):
+def open_gdal_reduced(path, band=1, size=None, resample_alg=gdal.GRIORA_Bilinear):
     ds = gdal.Open(path)
     bd = ds.GetRasterBand(band)
     ndv = bd.GetNoDataValue()
@@ -127,10 +127,10 @@ def save_gdal(path, data, template, ndv=None):
     ds.FlushCache()
 
 
-def invers_ramp(data, iter=50):
+def invers_ramp(data, iter=200):
     """ Derived from clean_raster, Pygdalsar, Simon Daout
     """
-    data_max, data_min = np.nanpercentile(data, 99.5), np.nanpercentile(data, 0.5)
+    data_max, data_min = np.nanpercentile(data, (98, 2))
     data = np.where(np.logical_or(data < data_min, data > data_max), np.nan, data)
 
     index = np.nonzero(~np.isnan(data))
@@ -191,10 +191,10 @@ def generate_ramp(chunk, dimensions, ramp_coeffs):
     return ramp
 
 
-def invers_ramp_dem(data, dem, iter=50):
+def invers_ramp_dem(data, dem, iter=200):
     """ Derived from clean_raster, Pygdalsar, Simon Daout
     """
-    data_max, data_min = np.nanpercentile(data, 99.5), np.nanpercentile(data, 0.5)
+    data_max, data_min = np.nanpercentile(data, (98, 2))
     data = np.where(np.logical_or(data < data_min, data > data_max), np.nan, data)
     
     index = np.nonzero(~(np.isnan(data) | np.isnan(dem)))
