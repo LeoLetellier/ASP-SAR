@@ -313,8 +313,9 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
         vmin = -vmax if vmax is not None else vmin
         vmax = -vmin if vmin is not None else vmax
     elif (vmax is None and vmin is None):
-        vmin = np.nanpercentile(data[0], 2)
-        vmax = np.nanpercentile(data[0], 98)
+        clean_data = data[0][~(np.isnan(data[0]) | np.isinf(data[0]))]
+        vmin = np.nanpercentile(clean_data, 2)
+        vmax = np.nanpercentile(clean_data, 98)
     
     cpt = arguments["--cpt"]
     if cpt is None:
@@ -355,8 +356,9 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
     
     if len(data) > 1:
         # Plot the secondary display (amplitude)
-        vmin = np.nanpercentile(data[1], 2)
-        vmax = np.nanpercentile(data[1], 98)
+        clean_data = data[1][~(np.isnan(data[0]) | np.isinf(data[0]))]
+        vmin = np.nanpercentile(clean_data, 2)
+        vmax = np.nanpercentile(clean_data, 98)
         plot_raster(data[1], 'Greys_r', vmin, vmax, cross, title + " [Amplitude]", zoom, origin, bg, alpha)
         if do_save:
             print("Saving amplitude...")
@@ -422,9 +424,10 @@ def plot_histo(data, title, crop, zoom):
         histo_label.append('Zoom')
     
     for d, l in zip(histo_data, histo_label):
-        lower = np.nanpercentile(d, 1)
-        upper = np.nanpercentile(d, 99)
-        hist_values, bin_edges = np.histogram(d[~np.isnan(d)].flatten(), bins=50, range=(lower, upper))
+        data_filtered = d[~(np.isnan(d) | np.isinf(d))].flatten()
+        lower = np.nanpercentile(data_filtered, 1)
+        upper = np.nanpercentile(data_filtered, 99)
+        hist_values, bin_edges = np.histogram(data_filtered, bins=50, range=(lower, upper))
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         plt.plot(bin_centers, hist_values / np.sum(hist_values), label=l)
     plt.title(title + " [Histogram]")
