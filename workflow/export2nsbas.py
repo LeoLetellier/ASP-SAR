@@ -5,11 +5,12 @@ export2nsbas.py
 -----------
 Prepare a NSBAS directory given an EXPORT directory where H, V, NCC can be found
 
-Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>]
+Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>] [--dates=<dates>] --no-bp [-v | --verbose]
 export2nsbas.py -h | --help
 
 Options:
--h --help       Show this screen
+  -h, --help       Show this screen
+  -v, --verbose
 """
 
 import os
@@ -31,11 +32,38 @@ class Pair:
             self.bt = (datetime.strptime(date2, "%Y%m%d") - datetime.strptime(date1, "%Y%m%d")).days
         self.bp = bp
         if bp is None:
-            bp = 0
-        self.has_v = False
-        self.has_h = False
-        self.has_ncc = False
+            self.bp = 0
+        self.path_v = None
+        self.path_h = None
+        self.path_ncc = None
+    
+    def get_expected_paths(self, export_dir):
+        self.path_v = os.path.join(
+            export_dir,
+            "V",
+            "V_" + str(self) + ".r4"
+        )
+        self.path_h = os.path.join(
+            export_dir,
+            "H",
+            "H_" + str(self) + ".r4"
+        )
+        self.path_ncc = os.path.join(
+            export_dir,
+            "NCC",
+            "NCC_" + str(self) + ".r4"
+        )
+        return self
+    
+    def check_files_exists(self):
+        h_exists = self.path_h is not None and os.path.isfile(self.path_h)
+        v_exists = self.path_v is not None and os.path.isfile(self.path_v)
+        ncc_exists = self.path_ncc is not None and os.path.isfile(self.path_ncc)
+        return h_exists, v_exists, ncc_exists
 
+    def __str__(self):
+        return "{}_{}".format(self.date1, self.date2)
+    
     def has_all(self):
         return self.has_h and self.has_v and self.has_ncc
 
@@ -99,11 +127,13 @@ list_pair
 
 def write_nsbas_list_pair(nsbas_dir, pairs):
     pairs = [p.get_dates() for p in pairs]
+    #TODO
     np.savetxt(os.path.join(nsbas_dir, 'H', 'list_pair'), pairs, delimiter='\t', fmt='%s')
     np.savetxt(os.path.join(nsbas_dir, 'V', 'list_pair'), pairs, delimiter='\t', fmt='%s')
 
 
 def write_nsbas_list_date(nsbas_dir, dates):
+    #TODO
     np.savetxt(os.path.join(nsbas_dir, 'H', 'list_dates'), dates, delimiter='\t', fmt='%s')
     np.savetxt(os.path.join(nsbas_dir, 'V', 'list_dates'), dates, delimiter='\t', fmt='%s')
 
@@ -117,7 +147,6 @@ def fetch_pairs(export_dir):
     v_pairs_dates = [os.path.basename(p).split('_')[1:3] for p in v_pairs]
     ncc_pairs_dates = [os.path.basename(p).split('_')[1:3] for p in ncc_pairs]
 
-    # will probably compare pointers so not working...
     full_pairs_dates = h_pairs_dates + v_pairs_dates + ncc_pairs_dates
     full_pairs_dates = list(set(full_pairs_dates))
     common_pairs = []
@@ -129,6 +158,7 @@ def fetch_pairs(export_dir):
                 p[0],
                 p[1]
             ))
+    return common_pairs
 
 
 def get_daily_bp(pairs, dates):
@@ -136,22 +166,42 @@ def get_daily_bp(pairs, dates):
 
 
 def infer_pair_from_files(folder):
-    pass
+    h_pairs = glob.glob(os.path.join(export_dir, 'H', 'H_*_*.r4'))
+    v_pairs = glob.glob(os.path.join(export_dir, 'V', 'V_*_*.r4'))
+    ncc_pairs = glob.glob(os.path.join(export_dir, 'NCC', 'NCC_*_*.r4'))
+
+    h_pairs_dates = [os.path.basename(p).split('_')[1:3] for p in h_pairs]
+    v_pairs_dates = [os.path.basename(p).split('_')[1:3] for p in v_pairs]
+    ncc_pairs_dates = [os.path.basename(p).split('_')[1:3] for p in ncc_pairs]
+
+    full_pairs_dates = h_pairs_dates + v_pairs_dates + ncc_pairs_dates
+    full_pairs_dates = list(set(full_pairs_dates))
+    pairs = []
+    for k in range(len(full_pairs_dates)):
+        pairs.append(Pair(full_pairs_dates[k][0], full_pairs_dates[k][1]))
+    
+    return pairs
 
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
+    if arguments["--verbose"]:
+        logging.basicConfig(
+            level=logging.INFO, format="%(levelname)s: %(asctime)s | %(message)s"
+        )
 
     export_dir = arguments["<export>"]
     nsbas_dir = arguments["<nsbas>"]
     pairs_file = arguments["--pairs"]
+    no_bp = arguments["--no-bp"]
 
     if pairs_file is not None:
         pairs = Pair.read_from_file(pairs_file)
-        dates = []
-        for p in pairs:
-            dates += p.get_dates()
-        dates = list(set(dates))
-        dates.sort()
     else:
-        pairs, dates = infer_pair_from_files(export_dir)
+        pairs = infer_pair_from_files(export_dir)
+    
+    dates = []
+    for p in pairs:
+        dates += p.get_dates()
+    dates = list(set(dates))
+    dates.sort()

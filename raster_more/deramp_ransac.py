@@ -12,7 +12,7 @@ Rasters are subsampled for the ramp solving and opened chunk by chunk when savin
 Usage: deramp_ransac.py <infile> --outfile=<outfile> [--ramp=<ramp>] [--add-data=<add-data>] [--plot] [--band=<band>] \
 [--chunk-size=<chunk-size>] [--overwrite] [--ovr-ratio=<ovr-ratio>] [--ndv=<ndv>] [--mask-percentile=<mask-percentile>] \
 [--save-ramp] [--nosave-deramp] [-v | --verbose] [--mask=<mask>] [-h | --help] [--save-coeffs] [--cyclic-data] \
-[--weights=<weights>]
+[--weights=<weights>] [--coeffs=<coeffs>]
 deramp_ransac.py -h | --help
 
 Options:
@@ -35,6 +35,7 @@ Options:
   --save-coeffs         Output a text file with the ramp equation and associated coefficients
   --cyclic-data         Process the additionnal as a cyclic data in radians by using sin & cos decomposition
   --weights=<weights>   Add weights to use for the inversion
+  --coeffs=<coeffs>     Use these coefficients instead of solving the ramp
 
 Ramps:
     - linear | s3
@@ -64,7 +65,7 @@ Ramps:
     - cubic_data
         cubic [^1 and 2 and 3] in D
 
-Implementation: Leo Letellier
+© 2026 Leo Letellier
 Ramp presets 's' from: [PyGdalSAR](https://github.com/simondaout/PyGdalSAR/blob/master/TimeSeries/invers_disp2coef.py)
 """
 
@@ -285,12 +286,12 @@ class Ramp:
                     column = np.square(extern_data)
                 else:
                     column = np.power(extern_data, o)
-            columns.append(column)
+                columns.append(column)
 
         # Constant reference
         if with_reference:
             columns.append(np.ones(shape=data_nb))
-
+    
         return np.column_stack(columns)
 
     def solve(
@@ -327,6 +328,10 @@ class Ramp:
         coeffs_list = ransac.estimator_.coef_.tolist()
         reference = float(ransac.estimator_.intercept_)
         coeffs_list.append(reference)
+        if len(coeffs_list) != len(self):
+            raise ValueError('Implementation error handling coeffs numbers, expected {} got {}'.format(
+                len(self), len(coeffs_list)
+            ))
 
         self.coefficients = coeffs_list
         return self
@@ -525,7 +530,7 @@ def plot_ramp_result(data: np.ndarray, ramp: np.ndarray):
 
 
 def get_ramp(
-    ramp_name: str, has_extern_data: bool = False, use_cyclic_data: bool = False
+    ramp_name: str, has_extern_data: bool = False, use_cyclic_data: bool = False, coeffs: list | None = None
 ) -> Ramp:
     """Create a ramp based on a ramp name"""
     across_track_orders = None
@@ -600,6 +605,12 @@ def get_ramp(
         extern_data_orders=extern_data_orders,
     )
     ramp.has_cyclic_extern_data = use_cyclic_data
+    
+    if coeffs is not None:
+        if not len(coeffs) == len(ramp):
+            raise ValueError("Got {} coeffs values but ramp need {}".format(len(coeffs), len(ramp)))
+        ramp.coefficients = coeffs
+
     return ramp
 
 
@@ -671,10 +682,11 @@ if __name__ == "__main__":
     save_coeffs = arguments["--save-coeffs"]
     use_cyclic_data = arguments["--cyclic-data"]
     weights = arguments["--weights"]
+    coeffs = [float(c) for c in arguments["--coeffs"].split(',')] if arguments["--coeffs"] is not None else None
 
     # Create and solve the ramp
     ramp = get_ramp(
-        ramp_name, has_extern_data=not add_data is None, use_cyclic_data=use_cyclic_data
+        ramp_name, has_extern_data=not add_data is None, use_cyclic_data=use_cyclic_data, coeffs=coeffs
     )
     raster_size = check_raster_consistency(infile, add_data, mask, weights)
     ovr_size = infer_ovr_size(ratio, raster_size)
@@ -688,9 +700,11 @@ if __name__ == "__main__":
         weights_reduced = None
     if add_data is not None:
         add_data_reduced = open_gdal_reduced(add_data, size=ovr_size, add_ndv=add_ndv)
-        ramp.solve(data_reduced, add_data_reduced, mask_percentile, weights_reduced)
+        if coeffs is None:
+            ramp.solve(data_reduced, add_data_reduced, mask_percentile, weights_reduced)
     else:
-        ramp.solve(data_reduced, None, mask_percentile, weights_reduced)
+        if coeffs is None:
+            ramp.solve(data_reduced, None, mask_percentile, weights_reduced)
     if save_coeffs:
         outfile_coeffs = outfile + "_coeffs_{}.txt".format(
             datetime.now().strftime("%y%m%d%H%M%S")

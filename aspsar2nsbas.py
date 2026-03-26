@@ -233,10 +233,10 @@ def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling
         #     target + "_deramp.tif"
         # )
         dem = os.path.join(folder, "radar_dem.tif")
-        aspect = os.path.join(folder, "dem_west_aspect.tif")
+        aspect = os.path.join(folder, "dem_east_aspect_rads.tif")
         if os.path.isfile(aspect):
             logger.debug("remove aspect ramp")
-            cmd2 = '''deramp_ransac.py {} --outfile={} --chunk-size=4096 --add-data={} --cyclic-data --save-coeffs --ramp=linear'''.format(
+            cmd2 = '''deramp_ransac.py {} --outfile={} --chunk-size=4096,4096 --add-data={} --cyclic-data --save-coeffs --ramp=linear'''.format(
                 current_file,
                 target + "_deramp.tif",
                 aspect
@@ -253,11 +253,12 @@ def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling
         intermediary_files.append(current_file)
 
     # (3) Reference to median
-    cmd3 = '''gdal_calc -A {} --calc="A - numpy.nanmed(A)" --outfile={}'''.format(
+    cmd3 = '''gdal_calc -A {} --calc="A - numpy.nanmedian(A)" --outfile={}'''.format(
         current_file,
         target + "_referenced.tif"
     )
     current_file = target + "_referenced.tif"
+    intermediary_files.append(current_file)
     print(cmd3)
     sh(cmd3)
 
@@ -275,8 +276,8 @@ def correct_disparity_sh(folder, path, target, band_disp=1, band_ndv=3, sampling
 
     # (6) Remove intermediate files
     logger.debug("rm files")
-    # for f in intermediary_files:
-    #     os.remove(f)
+    for f in intermediary_files:
+        os.remove(f)
 
 
 def correct_disparity(path, target, band_disp=1, band_ndv=3, sampling=1, rm_med=True, cc_mask=True, da_mask=None, disp_path = None, do_deramp=True, ref_area=None):
