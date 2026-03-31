@@ -22,7 +22,7 @@ Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
 [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
 [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
 [--bg=<bg>] [--alpha=<alpha>] [--vario] [--samples=<samples>] [--dlag=<dlag>] [--nlag=<nlag>] [--model=<model>] \
-[--res=<res>] [--no-plot]
+[--res=<res>] [--no-plot] [--phase | --amp]
 
 
 Options:
@@ -51,6 +51,15 @@ Options:
 --save                  Save the display to pdf
 --bg                    Path to a background raster of same dimension as infile [must be GDAL raster]
 --alpha                 Alpha value to apply to the infile to show the background behind [default: 0.8]
+--vario                 Compute an omni-directional semi-variogram from scikit gstats
+--samples=<samples>     VARIO specify the number of samples to use
+--dlag=<dlag>           VARIO distance of each bins or lags 
+--nlags=<nlags>         VARIO number of bins or lags
+--model=<model>         VARIO model of variogram
+--res=<res>             VARIO pixel resolution to interpret the variogram in meters
+--no-plot               Do not use matplotlib live plot, to be combined with --save
+--phase                 Force the selection of the phase for complex data type (CFloat32)
+--amp                   Force the selection of the amplitude for complex data type (CFloat32)
 """
 
 print()
@@ -277,7 +286,7 @@ def open_band_amster(file, params, crop):
     return data, driver, x_dim, y_dim, band_nb, data_type
 
 
-def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv):
+def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv, force_phase_amp):
     """Apply corrections to phase values"""
     if supp_ndv is not None:
         phase[phase == supp_ndv] = np.nan
@@ -285,11 +294,12 @@ def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv):
     if rad2mm is not None:
         # scale the values
         phase = phase * rad2mm
-
-    if ext in ['.slc']:
-        phase = np.absolute(phase)
-    if ext in ['.int', '.flat']:
-        phase = np.angle(phase)
+    
+    if not force_phase_amp:
+        if ext in ['.slc']:
+            phase = np.absolute(phase)
+        if ext in ['.int', '.flat']:
+            phase = np.angle(phase)
 
     if wrap is not None:
         # simulate wrapped values
@@ -298,10 +308,11 @@ def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv):
     return phase
 
 
-def correct_values_amp(amp, ext):
+def correct_values_amp(amp, ext, force_phase_amp):
     """Cpply corrections to amplitude values"""
-    if ext in ['.int', '.flat', '.diff']:
-        amp = np.absolute(amp)
+    if not force_phase_amp:
+        if ext in ['.int', '.flat', '.diff']:
+            amp = np.absolute(amp)
     return amp
 
 
@@ -599,6 +610,11 @@ if __name__ == "__main__":
 
     display_raster_format(infile, driver, x, y, b, dtype)
 
+    if arguments["--phase"]:
+        data[0] = np.angle(data[0])
+    elif arguments["--amp"]:
+        data[0] = np.absolute(data[0])
+
     bg = arguments["--bg"]
     alpha = arg2value(arguments["--alpha"], float, 0.8)
     if bg is not None:
@@ -612,9 +628,9 @@ if __name__ == "__main__":
     rad2mm = arg2value(arguments["--rad2mm"], float)
     wrap = arg2value(arguments["--wrap"], float)
 
-    data[0] = correct_values_phase(data[0], ext, rad2mm, wrap, supp_ndv)
+    data[0] = correct_values_phase(data[0], ext, rad2mm, wrap, supp_ndv, arguments["--phase"] or arguments["--amp"])
     if len(data) > 1:
-        data[1] = correct_values_amp(data[1], ext)
+        data[1] = correct_values_amp(data[1], ext, arguments["--phase"] or arguments["--amp"])
 
     do_save = arguments["--save"]
     
