@@ -80,6 +80,10 @@ import matplotlib.cm as cm
 from osgeo import gdal
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
+try:
+    import cmcrameri
+except:
+    pass
 
 gdal.UseExceptions()
 

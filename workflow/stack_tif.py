@@ -15,7 +15,7 @@ def sh(cmd: str, shell: bool = True):
 
 
 def stack_tif(folder, minimal_bt):
-    files = glob.glob(folder + "/GEOTIFF/*.tif")
+    files = glob.glob(folder + "/GEOTIFF/[12]*.tif")
     files.sort()
     names = [os.path.basename(f) for f in files]
     dates_str = [n[:8] for n in names]

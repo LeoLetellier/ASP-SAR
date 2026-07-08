@@ -5,7 +5,7 @@ export2nsbas.py
 -----------
 Prepare a NSBAS directory given an EXPORT directory where H, V, NCC can be found
 
-Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>] [--dates=<dates>] --no-bp [-v | --verbose]
+Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>] [--dates=<dates>] [--no-bp] [-v | --verbose]
 export2nsbas.py -h | --help
 
 Options:
@@ -70,7 +70,8 @@ class Pair:
     @staticmethod
     def read_from_file(table) -> list:
         pairs = np.loadtxt(table, usecols=(0, 1, 2, 3), skiprows=2, dtype=str)
-        pairs = [Pair(p[0], p[1], p[2], p[3]) for p in pairs]
+        # date1 date2 bp bt
+        pairs = [Pair(p[0], p[1], p[3], p[2]) for p in pairs]
         return pairs
 
     def get_dates(self):
@@ -80,14 +81,21 @@ class Pair:
         date1_dt = datetime.strptime(self.date1, "%Y%m%d")
         date2_dt = datetime.strptime(self.date2, "%Y%m%d")
         return [
-            date1_dt.year + (date1_dt.month - 1) / 12.0 + (date1_dt.day - 1) / 365.0, 
-            date2_dt.year + (date2_dt.month - 1) / 12.0 + (date2_dt.day - 1) / 365.0
+            date2float(date1_dt),
+            date2float(date2_dt)
             ]
+    
+
+def date2float(date):
+    if type(date) in [str, np.str_]:
+        date = datetime.strptime(date, "%Y%m%d")
+    elif type(date) is int:
+        date = datetime.strptime(str(date), "%Y%m%d")
+    return date.year + (date.month - 1) / 12.0 + (date.day - 1) / 365.0
 
 
 def write_nsbas_input_inv_send(nsbas_dir):
-    with open(os.path.join(nsbas_dir, 'V', "input_inv_send"), 'w') as f:
-        f.write("""\
+    content = """\
 0.03  #  temporal smoothing weight, gamma liss **2 (if <0.0001, no smoothing)
 1     #   mask pixels with large RMS misclosure  (y=0;n=1)
 1.5    #  threshold for the mask on RMS misclosure (in same unit as input files)
@@ -122,20 +130,47 @@ list_pair
 1      #  smoothing by Laplacian, computed with a scheme at 3pts (0) or 5pts (1) ?
 2      #  weigthed smoothing by the average time step (y :0 ; n : 1, int : 2) ?
 1      # put the first derivative to zero (y :0 ; n : 1)?
-    """)
+    """
+    if not os.path.exists(os.path.join(nsbas_dir, 'V', "input_inv_send")):
+        with open(os.path.join(nsbas_dir, 'V', "input_inv_send"), 'w') as f:
+            f.write(content)
+    if not os.path.exists(os.path.join(nsbas_dir, 'H', "input_inv_send")):
+        with open(os.path.join(nsbas_dir, 'H', "input_inv_send"), 'w') as f:
+            f.write(content)
 
 
 def write_nsbas_list_pair(nsbas_dir, pairs):
     pairs = [p.get_dates() for p in pairs]
-    #TODO
+
     np.savetxt(os.path.join(nsbas_dir, 'H', 'list_pair'), pairs, delimiter='\t', fmt='%s')
     np.savetxt(os.path.join(nsbas_dir, 'V', 'list_pair'), pairs, delimiter='\t', fmt='%s')
+    logger.info(f"Wrote {len(pairs)} pairs entry to file")
 
 
-def write_nsbas_list_date(nsbas_dir, dates):
-    #TODO
-    np.savetxt(os.path.join(nsbas_dir, 'H', 'list_dates'), dates, delimiter='\t', fmt='%s')
-    np.savetxt(os.path.join(nsbas_dir, 'V', 'list_dates'), dates, delimiter='\t', fmt='%s')
+def write_nsbas_list_date(nsbas_dir, pairs):
+    list_date = format_nsbas_date(pairs)
+
+    np.savetxt(os.path.join(nsbas_dir, 'H', 'list_dates'), list_date, delimiter='\t', fmt='%s')
+    np.savetxt(os.path.join(nsbas_dir, 'V', 'list_dates'), list_date, delimiter='\t', fmt='%s')
+    logger.info(f"Wrote {len(list_date)} date entry to file")
+
+
+def format_nsbas_date(pairs):
+    dates = []
+    for p in pairs:
+        dates += p.get_dates()
+    dates = list(set(dates))
+    dates.sort()
+
+    logger.info(f"Got {len(dates)} unique dates")
+
+    dates_dt = [datetime.strptime(d, "%Y%m%d") for d in dates]
+    dates_dec = [d.year + (d.month - 1) / 12.0 + (d.day - 1) / 365.0 for d in dates_dt]
+    dates_dec_datum = [d - dates_dec[0] for d in dates_dec]
+
+    bp = get_daily_bp(pairs, dates)
+
+    return np.column_stack([dates, dates_dec, dates_dec_datum, bp])
 
 
 def fetch_pairs(export_dir):
@@ -162,7 +197,49 @@ def fetch_pairs(export_dir):
 
 
 def get_daily_bp(pairs, dates):
-    pass
+    N = len(dates)
+    M = len(pairs)
+    G = np.zeros((M, N))
+    # print(G.shape, G.dtype)
+    dates = [d for d in dates]
+    
+    dates1, dates2, bp = [p.date1 for p in pairs], [p.date2 for p in pairs], [float(p.bp) for p in pairs]
+
+    print([k for k in zip(dates1, dates2, bp)])
+    print(np.mean(bp), np.median(bp))
+
+    for k in range((M)):
+        for n in range((N)):
+            if(dates1[k] == dates[n]):
+                G[k, n] = -1
+            if(dates2[k] == dates[n]):
+                G[k, n] = 1
+    
+    G[:,0] = 0
+    # print(len(bp), np.array(bp).dtype, bp)
+    m = np.linalg.lstsq(G, bp, rcond=-1)
+    # print(len(m), m)
+
+    print(list(m[0]))
+    print(np.mean(list(m[0])), np.median(list(m[0])))
+
+    return list(m[0])
+
+
+def test_get_daily_bp():
+    dates = ["20250101", "20250102", "20250103", "20250104"]
+    bp_dates = [0, 23, -12, 36]
+    pairs = [
+        Pair("20250101", "20250102", None, bp_dates[1] - bp_dates[0]),
+        Pair("20250101", "20250103", None, bp_dates[2] - bp_dates[0]),
+        Pair("20250101", "20250104", None, bp_dates[3] - bp_dates[0]),
+        Pair("20250102", "20250103", None, bp_dates[2] - bp_dates[1]),
+        Pair("20250102", "20250104", None, bp_dates[3] - bp_dates[1]),
+        Pair("20250103", "20250104", None, bp_dates[3] - bp_dates[2]),
+    ]
+    daily_bp = get_daily_bp(pairs, dates)
+
+    return np.allclose(bp_dates, daily_bp)
 
 
 def infer_pair_from_files(folder):
@@ -183,6 +260,23 @@ def infer_pair_from_files(folder):
     return pairs
 
 
+def link_data(nsbas, pairs):
+    for p in pairs:
+        d1, d2 = p.get_dates()
+
+        def linker(source, target):
+            if not os.path.islink(target):
+                os.symlink("../../../" + source, target)
+            if not os.path.islink(target + ".rsc"):
+                os.symlink("../../../" + source + ".rsc", target + ".rsc")
+
+        
+        linker(p.path_v, os.path.join(nsbas, "V", "LN_DATA", d1 + "-" + d2 + ".r4"))
+        linker(p.path_h, os.path.join(nsbas, "H", "LN_DATA", d1 + "-" + d2 + ".r4"))
+        linker(p.path_ncc, os.path.join(nsbas, "V", "LN_DATA", d1 + "-" + d2 + "-CC.r4"))
+        linker(p.path_ncc, os.path.join(nsbas, "H", "LN_DATA", d1 + "-" + d2 + "-CC.r4"))
+
+
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     if arguments["--verbose"]:
@@ -199,9 +293,24 @@ if __name__ == "__main__":
         pairs = Pair.read_from_file(pairs_file)
     else:
         pairs = infer_pair_from_files(export_dir)
-    
-    dates = []
+
+    logger.info(f"Processing {len(pairs)} pairs")
+
     for p in pairs:
-        dates += p.get_dates()
-    dates = list(set(dates))
-    dates.sort()
+        p.get_expected_paths(export_dir)
+        if not all(p.check_files_exists()):
+            raise FileNotFoundError(f"Not found: {p.path_v}, {p.path_h}")
+
+    def ensure_dir(dir):
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+    
+    ensure_dir(os.path.join(nsbas_dir, "H"))
+    ensure_dir(os.path.join(nsbas_dir, "H", "LN_DATA"))
+    ensure_dir(os.path.join(nsbas_dir, "V"))
+    ensure_dir(os.path.join(nsbas_dir, "V", "LN_DATA"))
+
+    write_nsbas_list_pair(nsbas_dir, pairs)
+    write_nsbas_list_date(nsbas_dir, pairs)
+    write_nsbas_input_inv_send(nsbas_dir)
+    link_data(nsbas_dir, pairs)

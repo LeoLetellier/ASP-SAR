@@ -4,7 +4,7 @@
 deramp_ts.py
 ------------
 
-Usage: deramp_ts.py <files-pattern> --ramp=<ramp> [--date-offset=<offset>] [--ramp-opts=<opts>] [--force]
+Usage: deramp_ts.py <files-pattern> --ramp=<ramp> [--date-offset=<offset>] [--ramp-opts=<opts>] [--force] [--outdir=<outdir>]
 
 Options:
   -h, --help                Show this screen
@@ -70,9 +70,9 @@ def read_coeffs_file(file):
     return coeffs
 
 
-def inverse_coeffs_per_date(d1, d2, coeffs):
-    input = "deramp_ts_coeffs_ramp_raw.txt"
-    outfile = "deramp_ts_coeffs_ramp_date.txt"
+def inverse_coeffs_per_date(d1, d2, coeffs, outdir):
+    input = os.path.join(outdir, "deramp_ts_coeffs_ramp_raw.txt")
+    outfile = os.path.join(outdir, "deramp_ts_coeffs_ramp_date.txt")
     coeffs_as_lists = [list(row) for row in zip(*coeffs)]
     coeffs_nb = len(coeffs_as_lists)
     
@@ -87,8 +87,8 @@ def inverse_coeffs_per_date(d1, d2, coeffs):
     return input, outfile, coeffs_nb
 
 
-def backsimulate_coeffs(input, outfile, nb):
-    backfile = "deramp_ts_coeffs_ramp_back.txt"
+def backsimulate_coeffs(input, outfile, nb, outdir):
+    backfile = os.path.join(outdir, "deramp_ts_coeffs_ramp_back.txt")
     
     cmd = "infer_date2pair.py --date={},0 --value={},{} --date1={},0 --date2={},1 --outfile={}".format(
         outfile, outfile, ','.join([str(1 + k) for k in range(nb)]), input, input, backfile
@@ -121,6 +121,7 @@ if __name__ == "__main__":
     offset = int(arguments["--date-offset"]) if arguments["--date-offset"] is not None else 0
     opts = arguments["--ramp-opts"] if arguments["--ramp-opts"] is not None else ""
     force = arguments["--force"]
+    outdir = arguments["--outdir"] if arguments["--outdir"] is not None else "./"
 
     files = glob.glob(pattern)
     names = [os.path.basename(f).split('.')[0] for f in files]
@@ -140,10 +141,10 @@ if __name__ == "__main__":
         coeffs.append(read_coeffs_file(f))
         logger.info("Solved ramp for {} with coeffs {}".format(f, coeffs[-1]))
 
-    input, outfile, nb = inverse_coeffs_per_date(d1, d2, coeffs)
+    input, outfile, nb = inverse_coeffs_per_date(d1, d2, coeffs, outdir)
     logger.info("Inverted coeffs in time series in files:\n{}\n{}".format(input, outfile))
 
-    backd1, backd2, back_coeffs = backsimulate_coeffs(input, outfile, nb)
+    backd1, backd2, back_coeffs = backsimulate_coeffs(input, outfile, nb, outdir)
     logger.info("Backsimulate the ramps:\n{}\n{}\n{}".format(d1, d2, back_coeffs))
 
     coeffs_as_lists = [list(row) for row in zip(*back_coeffs)]

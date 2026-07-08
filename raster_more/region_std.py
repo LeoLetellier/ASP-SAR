@@ -8,7 +8,7 @@ Compute the std in regions of some rasters
 
 For correct log output, raster filename must be like */YYYYMMDD_YYYYMMDD/*
 
-Usage: region_std.py --pattern=<pattern> [<regionfile>] [--ndv=<ndv>] [--band=<band>] [--outlog]
+Usage: region_std.py --pattern=<pattern> [<regionfile>] [--ndv=<ndv>] [--band=<band>] [--outlog] [--pos=<pos>]
 
 Options:
 -h --help               Show this screen.
@@ -45,13 +45,30 @@ def compute_std_region(infile, region, band=None, ndv=None):
     return np.nanstd(data)
 
 
-def save_log(file, raster, value):
+# Source - https://stackoverflow.com/a/1884277
+# Posted by Todd Gamblin, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-04-23, License - CC BY-SA 4.0
+
+def find_nth(haystack: str, needle: str, n: int) -> int:
+    start = haystack.find(needle)
+    while start >= 0 and n > 1:
+        start = haystack.find(needle, start+len(needle))
+        n -= 1
+    return start
+
+
+
+def save_log(file, raster, value, pos):
     """ Write std results to file for each raster for a specific region
     """
     content = ""
     for k in range(len(raster)):
         # Hardcoded: raster file name must be smth like */date1_date2/*
-        dates = raster[k].split('/')[-2].split('_')
+        if pos is None:
+            dates = raster[k].split('/')[-2].split('_')
+        else:
+            split_id = find_nth(raster[k], '_', pos)
+            dates = [raster[k][split_id-8: split_id], raster[k][split_id+1: split_id+9]]
         content += " ".join([str(k + 1), dates[0], dates[1], str(value[k])]) + "\n"
     with open(file, 'w') as outfile:
         outfile.write(content)
@@ -60,12 +77,13 @@ def save_log(file, raster, value):
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
-    # print(arguments)
     pattern = arguments["--pattern"]
     region_file = arguments["<regionfile>"]
     ndv = float(arguments["--ndv"]) if arguments["--ndv"] is not None else None
     band = int(arguments["--band"]) if arguments["--band"] is not None else None
     outlog = arguments["--outlog"]
+    pos = arguments["--pos"]
+    pos = int(pos) if pos is not None else None
 
     rasters = glob(pattern)
     print("Number of selected rasters:", len(rasters))
@@ -94,7 +112,7 @@ if __name__ == "__main__":
         # content = ""
         # Save one file per region (same format as RMSinterfero)
         for i, re in enumerate(stds_reg):
-            save_log("log_region_" + "_".join([str(l) for l in regions[i]]) + ".txt", rasters, re)
+            save_log("log_region_" + "_".join([str(l) for l in regions[i]]) + ".txt", rasters, re, pos)
             # content += "\n\nRegion " + " ".join([str(l) for l in regions[i]]) + "\n"
             # for j, ra in enumerate(re):
             #     content += rasters[j] + "\t\t" + str(ra) + "\n"

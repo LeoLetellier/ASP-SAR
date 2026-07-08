@@ -15,6 +15,7 @@ import os
 from osgeo import gdal
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
 from copy import deepcopy
@@ -364,10 +365,14 @@ if __name__ == "__main__":
     yearly_d1 = [datetime(common_year, date.month, date.day) for date in d1]
     yearly_d2 = [datetime(common_year, date.month, date.day) for date in d2]
 
-    plt.scatter(bt, sigma_v, label='std')
-    plt.scatter(bt, cpx, label='%corr')
-    plt.scatter(bt, ncc_mean, label='NCC')
-    plt.legend()
+    fig, axs = plt.subplots(3, 1)
+    axs[0].scatter(bt, sigma_v)
+    axs[0].set_ylabel("STD")
+    axs[1].scatter(bt, cpx)
+    axs[1].set_ylabel("%Correlated")
+    axs[2].scatter(bt, ncc_mean)
+    axs[2].set_ylabel("NCC")
+    axs[2].set_xlabel("Temporal baseline (days)")
     plt.figure()
 
     from matplotlib.colors import LogNorm
@@ -387,6 +392,8 @@ if __name__ == "__main__":
     plt.scatter(yearly_d2, sigma_h, s=bt/3, c=bt, norm=norm, cmap=cmap, edgecolors='black', alpha=0.9, linewidths=0.7)
     plt.ylabel("STD (m)")
     plt.xlabel("Yearly date")
+    plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%b"))
     cbar = plt.colorbar()
     cbar.ax.set_yticklabels(["0 month", "3 months", "5 months", "11 months", "13 months", "10 years"])
 

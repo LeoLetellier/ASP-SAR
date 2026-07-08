@@ -46,7 +46,7 @@ def plot_network(pairs, baselines):
         y.append(float(n.get_attributes()["bperp"]))
     ax.plot(x, y, "o", color='dodgerblue', mec='black', markersize=4, picker=5)
     for edge in graph.get_edges():
-        if graph.get_node(edge.get_source()) is not None and graph.get_node(edge.get_destination()) is not None:
+        if len(graph.get_node(edge.get_source())) > 0 and len(graph.get_node(edge.get_destination())) > 0:
             master = graph.get_node(edge.get_source())[0]
             slave = graph.get_node(edge.get_destination())[0]
             x = date2num(datetime.strptime(master.get_label(), "%Y%m%d"))

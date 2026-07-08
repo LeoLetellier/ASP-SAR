@@ -5,7 +5,7 @@ aspsar2export.py
 -----------
 Prepare an EXPORT directory given the results of ASPSAR correlation (STEREO)
 
-Usage: aspsar2export.py <stereo> <export> [--pairs=<pairs>] [--ramp=<ramp>] [--verbose | -v] [--tr=<tr>] [--force]
+Usage: aspsar2export.py <stereo> <export> [--pairs=<pairs>] [--ramp=<ramp> | ([--rampx=<ramp>] [--rampy=<ramp>])] [--verbose | -v] [--tr=<tr>] [--force]
 aspsar2export.py -h | --help
 
 Options:
@@ -39,6 +39,7 @@ class Pair:
         self.stereo_ncc = None
         self.local_result = None
         self.local_ncc = None
+        self.isdone = False
     
     def __str__(self):
         return "{}_{}".format(self.date1, self.date2)
@@ -150,13 +151,23 @@ class Pair:
             logger.info(cmd)
             sh(cmd)
         elif res is None and not os.path.islink(target):
-            logger.info("Linking {} to {}".format(self.stereo_result, target))
+            logger.info("Linking {} to {}".format(self.stereo_ncc, target))
             os.symlink(os.path.abspath(self.stereo_ncc), target)
         else:
             logger.info("Target {} exists. Keeping.".format(target))
         self.local_ncc = target
 
         return self
+    
+    def check_is_done(self, export_dir):
+        t1 = os.path.join(export_dir, 'H', 'H_' + str(self) + '.r4')
+        t2 = os.path.join(export_dir, 'V', 'V_' + str(self) + '.r4')
+        t3 = os.path.join(export_dir, 'NCC', 'NCC_' + str(self) + '.r4')
+        self.isdone = os.path.isfile(t1) and os.path.isfile(t2) and os.path.isfile(t3)
+        return self
+    
+    def is_done(self):
+        return self.isdone
 
 
 def generate_rsc(gdal_raster):
@@ -173,13 +184,21 @@ def generate_rsc(gdal_raster):
     YMAX                  %d""" % (ncol, nrow, ncol-1, nrow-1))
 
 
-def apply_ramps(export_dir, ramp_opts, force=False):
+def apply_ramps(export_dir, ramp_opts, rampx, rampy, force=False):
     add = "" if not force else " --force"
     for pref in ["H", "V"]:
-        targets = os.path.join(export_dir, pref, pref + "_*_*_meters.tif")
-        cmd = '''deramp_ts.py "{}" --ramp=linear --ramp-opts="{}" --date-offset=1'''.format(
+        add_ramp = ramp_opts if ramp_opts is not None else ""
+        if ramp_opts is None:
+            if rampx is not None and pref == "H":
+                add_ramp = rampx
+            elif rampy is not None and pref == "V":
+                add_ramp = rampy
+        outdir = os.path.join(export_dir, pref)
+        targets = os.path.join(outdir, pref + "_*_*_meters.tif")
+        cmd = '''deramp_ts.py "{}" --ramp=linear --ramp-opts="{}" --date-offset=1 --outdir={}'''.format(
                 targets,
-                ramp_opts
+                add_ramp,
+                outdir
             ) + add
         logger.info(cmd)
         sh(cmd)
@@ -212,6 +231,8 @@ if __name__ == "__main__":
     export_dir = arguments["<export>"]
     pairs_file = arguments["--pairs"]
     ramp = arguments["--ramp"]
+    rampx = arguments["--rampx"]
+    rampy = arguments["--rampy"]
     res = arguments["--tr"]
     force = arguments["--force"]
 
@@ -221,6 +242,11 @@ if __name__ == "__main__":
     for p in pairs:
         # find files
         p.search_stereo(stereo_dir, missing_f, missing_ncc)
+        p.check_is_done(export_dir)
+
+    if not os.path.isdir(export_dir):
+        logger.info("Initializing directory " + export_dir)
+        os.mkdir(export_dir)
 
     np.savetxt(os.path.join(export_dir, "missing_f.txt"), missing_f, "%s")
     np.savetxt(os.path.join(export_dir, "missing_ncc.txt"), missing_ncc, "%s")
@@ -229,19 +255,21 @@ if __name__ == "__main__":
 
     # stereo samplings
     h_res, v_res = np.loadtxt('sampling.txt', unpack=True, skiprows=1)
-    
-    for p in pairs:
-        # Fetch
-        p.link_or_resample(export_dir, res=res)
-        # Apply ndv and convert to meters 
-        p.apply_corrections(export_dir, [h_res, v_res], force)
-    
-    # Deramp using time series ramps
-    apply_ramps(export_dir, ramp, force)
-    # TODO skip all before if ramp output already exists or force it
 
-    for p in pairs:
-        # TODO skip if r4 already exists or force it
-        p.remove_median(export_dir)
-        p.switch_to_envi(export_dir)
-        #p.clean_files(export_dir)
+    all_done = all([p.is_done() for p in pairs])
+
+    if not all_done or force:
+
+        for p in pairs:
+            # Fetch
+            p.link_or_resample(export_dir, res=res)
+            # Apply ndv and convert to meters
+            p.apply_corrections(export_dir, [h_res, v_res], force)
+        
+        # Deramp using time series ramps
+        apply_ramps(export_dir, ramp, rampx, rampy, force)
+
+        for p in pairs:
+            p.remove_median(export_dir)
+            p.switch_to_envi(export_dir)
+            #p.clean_files(export_dir)
