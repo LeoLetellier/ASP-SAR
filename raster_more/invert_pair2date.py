@@ -20,7 +20,7 @@ Invert per dates a property value defined at pairs.
 If the property is an evolution (differential) between two dates (Pb - Pa), use it as is. Otherwise\
  if it represents an additive value between the two dates, use --noise.
 
-Usage: invert_pair2date.py --date1=<date1> --date2=<date2> --values=<values> --outfile=<outfile> [--noise] [--prop=<prop>] [--cst-w=<w>]
+Usage: invert_pair2date.py --date1=<date1> --date2=<date2> --values=<values> --outfile=<outfile> [--noise] [--prop=<prop>] [--cst-w=<w>] [--delimiter=<d>]
 invert_pair2date.py  -h | --help
 
 Options:
@@ -174,11 +174,12 @@ if __name__ == "__main__":
         prop_file, prop_col = arguments["--prop"].split(",")
     outfile = arguments["--outfile"]
     constant_weight = float(arguments["--cst-w"]) if arguments["--cst-w"] is not None else None
+    delimiter = arguments["--delimiter"]
 
-    date1 = np.loadtxt(date1_file, usecols=int(date1_col), dtype=str, unpack=True)
-    date2 = np.loadtxt(date2_file, usecols=int(date2_col), dtype=str, unpack=True)
-    values = np.loadtxt(value_file, usecols=[int(v) for v in value_col], dtype=float, unpack=True)
-    prop = None if prop_file is None else np.loadtxt(prop_file, usecols=int(prop_col), dtype=str, unpack=True)
+    date1 = np.loadtxt(date1_file, usecols=int(date1_col), dtype=str, unpack=True, delimiter=delimiter)
+    date2 = np.loadtxt(date2_file, usecols=int(date2_col), dtype=str, unpack=True, delimiter=delimiter)
+    values = np.loadtxt(value_file, usecols=[int(v) for v in value_col], dtype=float, unpack=True, delimiter=delimiter)
+    prop = None if prop_file is None else np.loadtxt(prop_file, usecols=int(prop_col), dtype=str, unpack=True, delimiter=delimiter)
 
     dates_initial = list(set(date1.tolist() + date2.tolist()))
     dates_initial.sort()
@@ -203,6 +204,7 @@ if __name__ == "__main__":
     dates.sort()
 
     values_date = date_inversion(values, date1, date2, dates, additive=arguments["--noise"], prop=prop, constant_weight=constant_weight)
+    print(values_date)
     if prop is not None:
         values_date, coeff_prop = values_date
         print(f"Corrected inversion with proportionnality coefficient: {coeff_prop}")
@@ -211,7 +213,10 @@ if __name__ == "__main__":
     if len(missing_dates) > 0:
         # Append at the end the missing dates with a nan value
         dates += missing_dates
-        values_date = np.concatenate((values_date, np.array([[np.nan for _ in range(len(missing_dates))]])))
+        # print(values_date.shape, np.array([[np.nan for _ in range(len(missing_dates))]]).shape)
+        # values_date = np.concatenate((values_date, np.array([[np.nan for _ in range(len(missing_dates))]])))
+        nan_rows = np.full((len(missing_dates), values_date.shape[1]), np.nan)
+        values_date = np.concatenate((values_date, nan_rows), axis=0)
 
     print("Saving in the output file", outfile)
     np.savetxt(outfile, np.concatenate([np.array(dates)[:, np.newaxis], values_date], axis=1), fmt="%s")
