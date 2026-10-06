@@ -5,7 +5,7 @@ aspsar2export.py
 -----------
 Prepare an EXPORT directory given the results of ASPSAR correlation (STEREO)
 
-Usage: aspsar2export.py <stereo> <export> [--pairs=<pairs>] [--ramp=<ramp> | ([--rampx=<ramp>] [--rampy=<ramp>])] [--verbose | -v] [--tr=<tr>] [--force]
+Usage: aspsar2export.py <stereo> <export> [--pairs=<pairs>] [--ramp=<ramp> | ([--rampx=<ramp>] [--rampy=<ramp>])] [--verbose | -v] [--tr=<tr>] [--force] [--noramp]
 aspsar2export.py -h | --help
 
 Options:
@@ -88,15 +88,20 @@ class Pair:
     def remove_median(self, export_dir):
         for pref in ["H", "V"]:
             target = os.path.join(export_dir, pref, pref + "_" + str(self) + "_meters.tif_deramp.tif")
-            if not os.path.isfile(target + "_median.tif") or force:
+            output = target + "_median.tif"
+            second_potential_target = os.path.join(export_dir, pref, pref + "_" + str(self) + "_meters.tif")
+            if not os.path.isfile(target) and os.path.isfile(second_potential_target):
+                target = second_potential_target
+
+            if not os.path.isfile(output) or force:
                 cmd = '''gdal_calc -A {} --calc="A - numpy.nanmedian(A)" --outfile={}'''.format(
                     target,
-                    target + "_median.tif"
+                    output
                 )
                 logger.info(cmd)
                 sh(cmd)
             else:
-                logger.info("Median removed raster {} already exists. Keeping.".format(target))
+                logger.info("Median removed raster {} already exists. Keeping.".format(output))
 
     def switch_to_envi(self, export_dir):
         for pref in ["H", "V", "NCC"]:
@@ -203,6 +208,7 @@ def apply_ramps(export_dir, ramp_opts, rampx, rampy, force=False):
         logger.info(cmd)
         sh(cmd)
 
+
 def ensure_directories(export_dir, force):
     def check_dir(directory):
         if not os.path.isdir(directory):
@@ -219,7 +225,6 @@ def ensure_directories(export_dir, force):
         check_dir(d)
 
 
-
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
     if arguments["--verbose"]:
@@ -234,6 +239,7 @@ if __name__ == "__main__":
     rampx = arguments["--rampx"]
     rampy = arguments["--rampy"]
     res = arguments["--tr"]
+    detrend_only = arguments["--noramp"]
     force = arguments["--force"]
 
     pairs = Pair.read_from_file(pairs_file)
@@ -267,7 +273,10 @@ if __name__ == "__main__":
             p.apply_corrections(export_dir, [h_res, v_res], force)
         
         # Deramp using time series ramps
-        apply_ramps(export_dir, ramp, rampx, rampy, force)
+        if not detrend_only:
+            apply_ramps(export_dir, ramp, rampx, rampy, force)
+        else:
+            logger.info("Skipping deramping")
 
         for p in pairs:
             p.remove_median(export_dir)

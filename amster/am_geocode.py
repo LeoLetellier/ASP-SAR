@@ -54,12 +54,14 @@ def move_to_amster(amster, files):
                     print(">> WARNING: skipped, target already exists:", target)
                 else:
                     cmd = "gdal_translate {} {} -of ENVI".format(f, target)
+                    # cmd = f"gdalwarp -of ENVI {f} {target} -dstnodata NaN"
                     sh(cmd)
                     print("Made ENVI copy from {} to {}".format(f, target))
                 links.append(target)
             else:
                 for b in range(1, band_nb + 1):
-                    target = os.path.join(dst, "REGEOC.b" + str(b) + "_" + os.path.basename(f) + ".r4")
+                    name = os.path.splitext(os.path.basename(f))[0]
+                    target = os.path.join(dst, "REGEOC.b" + str(b) + "_" + name + ".bil")
                     if os.path.exists(target):
                         print(">> WARNING: skipped, target already exists:", target)
                     else:

@@ -240,7 +240,7 @@ class TimeModel:
             plt.scatter(position[0], position[1], marker='x', color='black', s=150.0)
             plt.colorbar()
 
-        plt.figure()
+        plt.figure(figsize=(12, 5))
         plt.scatter(mpl_date, values)
         plt.plot(mpl_date, model, color='black')
         plt.xlabel("Date")
@@ -632,6 +632,8 @@ if __name__ == "__main__":
     dates, dates_dec, bperp = read_list_images(list_images)
     base_dates = dates_dec - dates_dec[0]
     N = len(base_dates)
+
+    print(f"Got {N} dates in cube")
 
     ensure_gdal_header(cube, lectfile, N)
     last_band = open_gdal(cube, band=-1)

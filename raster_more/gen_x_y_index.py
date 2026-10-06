@@ -4,8 +4,9 @@
 gen_x_y_index.py
 ------------
 
-Usage: gen_x_y_index.py <xdim> <ydim>
-gen_x_y_index.py <raster>
+Usage: 
+  gen_x_y_index.py <xdim> <ydim>
+  gen_x_y_index.py <raster>
 
 Options:
 -h | --help         Show this screen
@@ -27,7 +28,7 @@ def fetch_raster_dim(raster):
 
 def save_int_raster(data, target):
     drv = gdal.GetDriverByName('GTiff')
-    ds = drv.Create(target, data.shape[1], data.shape[0], 1, gdal.GDT_Int32)
+    ds = drv.Create(target, data.shape[1], data.shape[0], 1, gdal.GDT_Float32)
     band = ds.GetRasterBand(1)
     band.WriteArray(data)
     ds.FlushCache()
@@ -37,8 +38,8 @@ def save_int_raster(data, target):
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
 
-    x_dim, y_dim = arguments.get("<xdim>", None), arguments.get("<ydim>", None)
-    raster = arguments.get("raster", None)
+    x_dim, y_dim = arguments["<xdim>"], arguments["<ydim>"]
+    raster = arguments["<raster>"]
 
     if raster is not None:
         x_dim, y_dim = fetch_raster_dim(raster)

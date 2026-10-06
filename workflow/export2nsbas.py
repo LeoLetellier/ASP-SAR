@@ -5,7 +5,7 @@ export2nsbas.py
 -----------
 Prepare a NSBAS directory given an EXPORT directory where H, V, NCC can be found
 
-Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>] [--dates=<dates>] [--no-bp] [-v | --verbose]
+Usage: export2nsbas.py <export> <nsbas> [--pairs=<pairs>] [--no-bp] [-v | --verbose]
 export2nsbas.py -h | --help
 
 Options:
@@ -304,7 +304,8 @@ if __name__ == "__main__":
     def ensure_dir(dir):
         if not os.path.isdir(dir):
             os.mkdir(dir)
-    
+
+    ensure_dir(nsbas_dir)
     ensure_dir(os.path.join(nsbas_dir, "H"))
     ensure_dir(os.path.join(nsbas_dir, "H", "LN_DATA"))
     ensure_dir(os.path.join(nsbas_dir, "V"))
