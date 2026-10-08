@@ -3,13 +3,13 @@
 ############################################
 # Derived from plot_raster.py
 #
-# PyGdalSAR: An InSAR post-processing package 
+# PyGdalSAR: An InSAR post-processing package
 # written in Python-Gdal
 #
 ############################################
-# Author        : Mathieu Volat 
+# Authors       : Mathieu Volat
 #                 Simon Daout (CRPG-ENSG)
-# Revision      : Leo Letellier
+#                 Leo Letellier
 ############################################
 
 """
@@ -18,96 +18,107 @@ rplot.py
 Display and Cut image file (.unw/.int/.r4/.tiff)
 
 Usage: rplot.py <infile> [--cpt=<values>] [--crop=<values>] \
-[--dim=<dim> | --gdal | --lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] \
-[--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
-[--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
-[--bg=<bg>] [--alpha=<alpha>] [--vario] [--samples=<samples>] [--dlag=<dlag>] [--nlag=<nlag>] [--model=<model>] \
-[--res=<res>] [--no-plot] [--phase | --amp]
+  [--dim=<dim> | --gdal | --lectfile=<lectfile> | --lectcube=<lectcube> | --parfile=<parfile> | --amfile=<amfile>] \
+  [--rad2mm=<rad2mm>] [--title=<title>] [--wrap=<wrap>] [--vmin=<vmin>] [--vmax=<vmax>] [--band=<band>] \
+  [--cols=<cols>] [--lines=<lines>] [--zoom=<zoom>] [--histo] [--save] [--ndv=<ndv>] [--stats] \
+  [--bg=<bg>] [--alpha=<alpha>] [--vario] [--samples=<samples>] [--dlag=<dlag>] [--nlag=<nlag>] [--model=<model>] \
+  [--res=<res>] [--no-plot] [--phase | --amp] [--decimate=<d>]
 
 
 Options:
--h --help               Show this screen.
-<infile>                Raster to be displayed
---dim=<dim>             Indicate the raster's dimension (x,y or x,y,band)
---gdal                  Force the openning with GDAL
---lectfile=<lectfile>   Path of the lect.in file for r4 format
---lectcube=<lectcube>   Path to lect.in file containing band metadata
---parfile=<parfile>     Path of the .par file of GAMMA
---amfile=<amfile>       Path of the AMSTer InsarParameter file
---crop=<crop>           Crop option ("xmin,xmax,ymin,ymax")
---cpt=<cpt>             Indicate colorscale for phase
---wrap=<wrap>           Wrapped phase between value for unwrapped files 
---rad2mm=<rad2mm>       Convert data [default: 1]
---title=<title>         Title plot 
---band=<band>           Select band number [default: 1] 
---vmax=<vmax>           Max colorscale [default: 98th percentile]
---vmin=<vmin>           Min colorscale [default: 2th percentile]
---cols=<cols>           Add marker on pixel column numbers (eg. 200,400,450)
---lines=<lines>         Add marker on pixel lines numbers  (eg. 1200,1200,3000)
---ndv=<ndv>             Use an additionnal no data value
---zoom=<zoom>           Additionnaly display a zoom of the raster ("xmin,xmax,ymin,ymax")
---histo                 Additionnaly display the raster histogram
---stats                 Display the raster and zoom statistics
---save                  Save the display to pdf
---bg                    Path to a background raster of same dimension as infile [must be GDAL raster]
---alpha                 Alpha value to apply to the infile to show the background behind [default: 0.8]
---vario                 Compute an omni-directional semi-variogram from scikit gstats
---samples=<samples>     VARIO specify the number of samples to use
---dlag=<dlag>           VARIO distance of each bins or lags 
---nlags=<nlags>         VARIO number of bins or lags
---model=<model>         VARIO model of variogram
---res=<res>             VARIO pixel resolution to interpret the variogram in meters
---no-plot               Do not use matplotlib live plot, to be combined with --save
---phase                 Force the selection of the phase for complex data type (CFloat32)
---amp                   Force the selection of the amplitude for complex data type (CFloat32)
+  -h --help               Show this screen.
+  <infile>                Raster to be displayed
+  --dim=<dim>             Indicate the raster's dimension (x,y or x,y,band)
+  --gdal                  Force the openning with GDAL
+  --lectfile=<lectfile>   Path of the lect.in file for r4 format
+  --lectcube=<lectcube>   Path to lect.in file containing band metadata
+  --parfile=<parfile>     Path of the .par file of GAMMA
+  --amfile=<amfile>       Path of the AMSTer InsarParameter file
+  --crop=<crop>           Crop option ("xmin,xmax,ymin,ymax")
+  --cpt=<cpt>             Indicate colorscale for phase
+  --wrap=<wrap>           Wrapped phase between value for unwrapped files
+  --rad2mm=<rad2mm>       Convert data [default: 1]
+  --title=<title>         Title plot
+  --band=<band>           Select band number [default: 1]
+  --vmax=<vmax>           Max colorscale (default: 98th percentile)
+  --vmin=<vmin>           Min colorscale (default: 2th percentile)
+  --cols=<cols>           Add marker on pixel column numbers (eg. 200,400,450)
+  --lines=<lines>         Add marker on pixel lines numbers  (eg. 1200,1200,3000)
+  --ndv=<ndv>             Use an additionnal no data value
+  --zoom=<zoom>           Additionnaly display a zoom of the raster ("xmin,xmax,ymin,ymax")
+  --histo                 Additionnaly display the raster histogram
+  --stats                 Display the raster and zoom statistics
+  --save                  Save the display to pdf
+  --bg=<bg>               Path to a background raster of same dimension as infile [must be GDAL raster]
+  --alpha=<a>             Alpha value to apply to the infile to show the background behind [default: 0.8]
+  --vario                 Compute an omni-directional semi-variogram from scikit gstats
+  --samples=<samples>     VARIO specify the number of samples to use
+  --dlag=<dlag>           VARIO distance of each bins or lags
+  --nlags=<nlags>         VARIO number of bins or lags
+  --model=<model>         VARIO model of variogram
+  --res=<res>             VARIO pixel resolution to interpret the variogram in meters
+  --no-plot               Do not use matplotlib live plot, to be combined with --save
+  --phase                 Force the selection of the phase for complex data type (CFloat32)
+  --amp                   Force the selection of the amplitude for complex data type (CFloat32)
+  --decimate=<d>          Downsample by this factor to decrease the number of pixel to load
 """
-
-print()
-print()
-print('Author: Simon Daout')
-print()
-print('revised version September 2025 (Leo Letellier)')
-print()
 
 try:
     from nsbas import docopt
-except:
+except ModuleNotFoundError:
     import docopt
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from osgeo import gdal
+import rasterio
+from rasterio.enums import Resampling
+from rasterio.errors import RasterioIOError
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
+
 try:
     import cmcrameri
-except:
+except ModuleNotFoundError:
     pass
 
-gdal.UseExceptions()
+print()
+print()
+print("Author: Simon Daout")
+print()
+print("revised version October 2026 (Leo Letellier)")
+print()
 
 EXT = {
-    'ROIPAC': [
-        '.unw',
-        '.hgt',
+    "ROIPAC": [
+        ".unw",
+        ".hgt",
     ],
-    'REAL4': [
-        '.r4',
+    "REAL4": [
+        ".r4",
     ],
-    'GDAL': [
-        '.tif',
-        '.tiff',
-        '.bil',
-        '.int',
-        '.slc',
-        '.flat',
+    "GDAL": [
+        ".tif",
+        ".tiff",
+        ".bil",
+        ".int",
+        ".slc",
+        ".flat",
     ],
-    'AMSTER': [
+    "AMSTER": [],
+    "GAMMA": [
+        ".diff",
     ],
-    'GAMMA': [
-        '.diff',
-    ],
+}
+
+_RAW_TYPES = {
+    "Byte": 1,
+    "Int16": 2,
+    "UInt16": 2,
+    "Int32": 4,
+    "UInt32": 4,
+    "Float32": 4,
+    "Float64": 8,
 }
 
 
@@ -132,125 +143,163 @@ def resolve_format(infile):
             break
 
     maybe_real4_param = os.path.join(os.path.dirname(infile), "lect.in")
-    maybe_amster_param = os.path.join(os.path.dirname(os.path.dirname(infile)), "TextFiles", "InSARParameters.txt")
-    maybe_hdr = os.path.splitext(infile)[0] + '.hdr'
-    maybe_rsc = infile + '.rsc'
+    maybe_amster_param = os.path.join(
+        os.path.dirname(os.path.dirname(infile)), "TextFiles", "InSARParameters.txt"
+    )
+    maybe_hdr = os.path.splitext(infile)[0] + ".hdr"
+    maybe_rsc = infile + ".rsc"
     has_real4_param = os.path.isfile(maybe_real4_param)
     has_amster_param = os.path.isfile(maybe_amster_param)
     has_hdr = os.path.isfile(maybe_hdr)
     has_rsc = os.path.isfile(maybe_rsc)
-    
+
     if has_hdr:
-        return 'GDAL', None
-    elif file_format in [None, 'REAL4'] and has_rsc:
-        return 'REAL4', maybe_rsc
-    elif file_format == 'REAL4' or (file_format is None and has_real4_param):
-        return 'REAL4', maybe_real4_param
-    elif file_format == 'AMSTER' or (file_format is None and has_amster_param):
-        return 'AMSTER', maybe_amster_param
-    elif file_format == 'ROIPAC':
-        return 'ROIPAC', None
-    elif file_format == 'GAMMA':
-        raise ValueError('To use GAMMA file please provide the par header file')
-    
+        return "GDAL", None
+    elif file_format in [None, "REAL4"] and has_rsc:
+        return "REAL4", maybe_rsc
+    elif file_format == "REAL4" or (file_format is None and has_real4_param):
+        return "REAL4", maybe_real4_param
+    elif file_format == "AMSTER" or (file_format is None and has_amster_param):
+        return "AMSTER", maybe_amster_param
+    elif file_format == "ROIPAC":
+        return "ROIPAC", None
+    elif file_format == "GAMMA":
+        raise ValueError("To use GAMMA file please provide the par header file")
+
     try:
-        gdal.Open(infile)
-    except:
-        raise ValueError('Unsupported file')
-    return 'GDAL', None
+        with rasterio.open(infile) as src:
+            if src.count == 0:
+                raise ValueError("File has no raster bands")
+    except RasterioIOError:
+        raise ValueError("Unsupported file")
+
+    return "GDAL", None
 
 
-def open_band_gdal(file, band, crop):
-    """ Open as GDAL raster
+def _decimated_shape(window, decimate):
+    """Output (rows, cols); decimate may be a float (per-axis factor)"""
+    rows = window[0][1] - window[0][0]
+    cols = window[1][1] - window[1][0]
+    return max(1, int(rows / decimate)), max(1, int(cols / decimate))
+
+
+def _read_band(src, band, window, decimate):
+    """Read one band, decimated with nearest-neighbour resampling"""
+    out_shape = _decimated_shape(window, decimate) if decimate > 1 else None
+    return src.read(band, window=window, out_shape=out_shape,
+                    resampling=Resampling.nearest)
+
+
+def open_band_gdal(file, band, crop, decimate=1):
+    """Open as GDAL raster
     crop: xmin, xmax, ymin, ymax
+    decimate: keep roughly 1 pixel out of `decimate` along each axis
     return: data, driver, x, y, b, dtype
     """
-    ds = gdal.Open(file)
-    band = ds.GetRasterBand(band)
-    ndv = band.GetNoDataValue()
-    if crop is None:
-        crop = [0, band.XSize, 0, band.YSize]
-    x_dim = crop[1] - crop[0]
-    y_dim = crop[3] - crop[2]
-    array = band.ReadAsArray(crop[0], crop[2], x_dim, y_dim)
-    if ndv is not None and ndv != np.nan:
-        try:
-            array[array == ndv] = np.nan
-        except:
-            pass
-    return [array], ds.GetDriver().ShortName, ds.RasterXSize, ds.RasterYSize, ds.RasterCount, gdal.GetDataTypeName(band.DataType)
+    with rasterio.open(file) as src:
+        ndv = src.nodatavals[band - 1]
+        if crop is None:
+            crop = [0, src.width, 0, src.height]
+        window = ((crop[2], crop[3]), (crop[0], crop[1]))
+        array = _read_band(src, band, window, decimate)
+        if ndv is not None and not np.isnan(ndv):
+            try:
+                array[array == ndv] = np.nan
+            except Exception:
+                pass
+        dtype_name = src.dtypes[band - 1]
+    return [array], src.driver, src.width, src.height, src.count, dtype_name
 
 
-def open_band_real4(file, band, params, crop, cube):
+def open_band_dim(file, x_dim, y_dim, dtype="Float32", band_nb=1, byte_order="LSB"):
+    """Simulate a GDAL virtual raster using a given file and dimensions"""
+    file = getattr(file, "name", file)
+    path = os.path.abspath(file)
+    size = _RAW_TYPES[dtype]
+    bands = "".join(
+        f'''
+  <VRTRasterBand dataType="{dtype}" band="{b + 1}" subClass="VRTRawRasterBand">
+    <SourceFilename relativeToVRT="0">{path}</SourceFilename>
+    <ImageOffset>{b * x_dim * y_dim * size}</ImageOffset>
+    <PixelOffset>{size}</PixelOffset>
+    <LineOffset>{size * x_dim}</LineOffset>
+    <ByteOrder>{byte_order}</ByteOrder>
+  </VRTRasterBand>'''
+        for b in range(band_nb)
+    )
+    vrt = f'<VRTDataset rasterXSize="{x_dim}" rasterYSize="{y_dim}">{bands}\n</VRTDataset>'
+    # Allow the use of memory vrt for this time
+    with rasterio.Env(GDAL_VRT_RAWRASTERBAND_ALLOWED_SOURCE="ALL"):
+        return rasterio.open(vrt)
+
+
+def open_band_real4(file, band, params, crop, cube, decimate=1):
     """Open as REAL4 raster"""
-    fid = open(file, 'r')
-    if cube:
-        if type(param_file) is list:
-            x_dim, y_dim, band_nb = param_file
-        else:
-            x_dim, y_dim, band_nb = list(map(int, open(params).readline().split(None, 3)[0:3]))
+    if type(params) is list:
+        x_dim, y_dim, band_nb = params
+    elif cube:
+        with open(params) as pf:
+            x_dim, y_dim, band_nb = list(map(int, pf.readline().split(None, 3)[0:3]))
     else:
         band_nb = 1
-        if type(param_file) is not str:
-            x_dim, y_dim = param_file[:2]
-        elif os.path.splitext(params)[1] == '.rsc':
-            lines = open(params).read().strip().split('\n')
+        if type(params) is not str:
+            x_dim, y_dim = params[:2]
+        elif os.path.splitext(params)[1] == ".rsc":
+            with open(params) as pf:
+                lines = pf.read().strip().split("\n")
             x_dim, y_dim = None, None
             for l in lines:
-                if 'WIDTH' in l:
-                    x_dim = int(''.join(filter(str.isdigit, l)))
-                elif 'FILE_LENGTH' in l:
-                    y_dim = int(''.join(filter(str.isdigit, l)))
+                if "WIDTH" in l:
+                    x_dim = int("".join(filter(str.isdigit, l)))
+                elif "FILE_LENGTH" in l:
+                    y_dim = int("".join(filter(str.isdigit, l)))
                 if x_dim is not None and y_dim is not None:
                     break
         else:
-            x_dim, y_dim = list(map(int, open(params).readline().split(None, 2)[0:2]))
-    
-    phase = np.fromfile(fid, dtype=np.float32)[:y_dim * x_dim * band_nb].reshape((y_dim, x_dim, band_nb))
-    phase = phase[:, :, band - 1]
+            with open(params) as pf:
+                x_dim, y_dim = list(map(int, pf.readline().split(None, 2)[0:2]))
 
-    if crop is not None:
-        phase = phase[crop[2]:crop[3], crop[0]:crop[1]]
-
-    data = [phase]
-    data_type = np.float32
-    driver = 'REAL4'
-    return data, driver, x_dim, y_dim, band_nb, data_type
-
-
-def open_band_roipac(file, crop):
-    """Open as custom ROIPAC raster (amplitude / phase)"""
-    ds = gdal.OpenEx(file, allowed_drivers=["ROI_PAC"])
     if crop is None:
-        crop = [0, ds.RasterXSize, 0, ds.RasterYSize]
-    x_dim = crop[1] - crop[0]
-    y_dim = crop[3] - crop[2]
-    driver = ds.GetDriver().ShortName
-    band_nb = ds.RasterCount
+        crop = [0, x_dim, 0, y_dim]
+    window = ((crop[2], crop[3]), (crop[0], crop[1]))
 
-    phase_band = ds.GetRasterBand(2)
-    phase_ndv = phase_band.GetNoDataValue()
-    phase_data = phase_band.ReadAsArray(crop[0], crop[2], x_dim, y_dim)
-    amp_band = ds.GetRasterBand(1)
-    amp_ndv = amp_band.GetNoDataValue()
-    amp_data = amp_band.ReadAsArray(crop[0], crop[2], x_dim, y_dim)
-    
-    if phase_ndv is not None and phase_ndv != np.nan:
-        phase_data[phase_data == phase_ndv] = np.nan
-    if amp_ndv is not None and amp_ndv != np.nan:
-        amp_data[amp_data == amp_ndv] = np.nan
-    data = [phase_data, amp_data]
-    data_type = gdal.GetDataTypeName(phase_band.DataType)
-    
-    return data, driver, ds.RasterXSize, ds.RasterYSize, band_nb, data_type
+    with open_band_dim(file, x_dim, y_dim, "Float32", band_nb) as src:
+        data = [_read_band(src, band, window, decimate)]
+
+    return data, "REAL4", x_dim, y_dim, band_nb, np.float32
+
+
+def open_band_roipac(file, crop, decimate=1):
+    """Open as custom ROIPAC raster (amplitude / phase)"""
+    with rasterio.open(file, driver="ROI_PAC") as src:
+        if crop is None:
+            crop = [0, src.width, 0, src.height]
+        window = ((crop[2], crop[3]), (crop[0], crop[1]))
+
+        phase_ndv = src.nodatavals[1]
+        phase_data = _read_band(src, 2, window, decimate)
+        amp_ndv = src.nodatavals[0]
+        amp_data = _read_band(src, 1, window, decimate)
+
+        if phase_ndv is not None and not np.isnan(phase_ndv):
+            phase_data[phase_data == phase_ndv] = np.nan
+        if amp_ndv is not None and not np.isnan(amp_ndv):
+            amp_data[amp_data == amp_ndv] = np.nan
+
+        data = [phase_data, amp_data]
+        data_type = src.dtypes[1]
+
+    return data, src.driver, src.width, src.height, src.count, data_type
 
 
 def open_band_gamma(file, params, crop):
     """Open as GAMMA raster"""
     try:
         from parsers import gamma as gm
-    except:
-        ModuleNotFoundError("GAMMA parser not found in python installation. Need gamma from module parsers.")
+    except ModuleNotFoundError:
+        ModuleNotFoundError(
+            "GAMMA parser not found in python installation. Need gamma from module parsers."
+        )
 
     if params is not None:
         y_dim, x_dim = gm.readpar(par=params)
@@ -260,34 +309,33 @@ def open_band_gamma(file, params, crop):
         phase = gm.readgamma_int(file)
 
     if crop is not None:
-        phase = phase[crop[2]:crop[3], crop[0]:crop[1]]
-    
+        phase = phase[crop[2] : crop[3], crop[0] : crop[1]]
+
     data = [phase]
-    driver = 'GAMMA'
+    driver = "GAMMA"
     band_nb = 1
-    data_type = 'unknown'
+    data_type = "unknown"
 
     return data, driver, x_dim, y_dim, band_nb, data_type
 
 
-def open_band_amster(file, params, crop):
+def open_band_amster(file, params, crop, decimate=1):
     """Open as AMSTer raster"""
-    with open(params, 'r') as pfile:
-        lines = [''.join(l.strip().split('\t\t')[0]) for l in pfile.readlines()]
-        jump_index = lines.index('/* -5- Interferometric products computation */')
-        img_dim = lines[jump_index + 2: jump_index + 4]
+    with open(params, "r") as pfile:
+        lines = ["".join(l.strip().split("\t\t")[0]) for l in pfile.readlines()]
+        jump_index = lines.index("/* -5- Interferometric products computation */")
+        img_dim = lines[jump_index + 2 : jump_index + 4]
         y_dim, x_dim = (int(img_dim[1].strip()), int(img_dim[0].strip()))
         band_nb = 1
-    
-    array = np.fromfile(file, dtype=np.float32)
-    data = [array[:x_dim * y_dim].reshape((y_dim, x_dim))]
-    driver = 'AMSTer'
-    data_type = np.float32
 
-    if crop is not None:
-        data[0] = data[0][crop[2]:crop[3], crop[0]:crop[1]]
+    if crop is None:
+        crop = [0, x_dim, 0, y_dim]
+    window = ((crop[2], crop[3]), (crop[0], crop[1]))
 
-    return data, driver, x_dim, y_dim, band_nb, data_type
+    with open_band_dim(file, x_dim, y_dim, "Float32", band_nb) as src:
+        data = [_read_band(src, band_nb, window, decimate)]
+
+    return data, "AMSTer", x_dim, y_dim, band_nb, np.float32
 
 
 def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv, force_phase_amp):
@@ -298,24 +346,24 @@ def correct_values_phase(phase, ext, rad2mm, wrap, supp_ndv, force_phase_amp):
     if rad2mm is not None:
         # scale the values
         phase = phase * rad2mm
-    
+
     if not force_phase_amp:
-        if ext in ['.slc']:
+        if ext in [".slc"]:
             phase = np.absolute(phase)
-        if ext in ['.int', '.flat']:
+        if ext in [".int", ".flat"]:
             phase = np.angle(phase)
 
     if wrap is not None:
         # simulate wrapped values
         phase = np.mod(phase + wrap, 2 * wrap) - wrap
-    
+
     return phase
 
 
 def correct_values_amp(amp, ext, force_phase_amp):
     """Cpply corrections to amplitude values"""
     if not force_phase_amp:
-        if ext in ['.int', '.flat', '.diff']:
+        if ext in [".int", ".flat", ".diff"]:
             amp = np.absolute(amp)
     return amp
 
@@ -324,23 +372,29 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
     """Manage all displays to be plotted"""
     vmin = arg2value(arguments["--vmin"], float)
     vmax = arg2value(arguments["--vmax"], float)
-    if (vmax is None) ^ (vmin is None):
+    if vmax is None and vmin is None and arguments["--phase"]:
+        vmin = -np.pi
+        vmax = np.pi
+    elif (vmax is None) ^ (vmin is None):
         vmin = -vmax if vmax is not None else vmin
         vmax = -vmin if vmin is not None else vmax
-    elif (vmax is None and vmin is None):
+    elif vmax is None and vmin is None:
         clean_data = data[0][~(np.isnan(data[0]) | np.isinf(data[0]))]
         vmin = np.nanpercentile(clean_data, 2)
         vmax = np.nanpercentile(clean_data, 98)
-    
+
     cpt = arguments["--cpt"]
     if cpt is None:
         try:
             from matplotlib.colors import LinearSegmentedColormap
-            cm_locs = os.environ["PYGDALSAR"] + '/contrib/python/colormaps/'
-            cpt = LinearSegmentedColormap.from_list('roma', np.loadtxt(cm_locs+"roma.txt"))
+
+            cm_locs = os.environ["PYGDALSAR"] + "/contrib/python/colormaps/"
+            cpt = LinearSegmentedColormap.from_list(
+                "roma", np.loadtxt(cm_locs + "roma.txt")
+            )
             cpt = cpt.reversed()
         except:
-            cpt=cm.rainbow
+            cpt = cm.rainbow
 
     cols = arguments["--cols"]
     lines = arguments["--lines"]
@@ -356,8 +410,8 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
 
     zoom = arguments["--zoom"]
     if zoom is not None:
-        zoom = [int(z) for z in zoom.split(',')]
-    
+        zoom = [int(z) for z in zoom.split(",")]
+
     origin = None
     if crop is not None:
         origin = (crop[0], crop[2])
@@ -367,31 +421,42 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
 
     if do_save:
         print("Saving figure...")
-        plt.savefig(infile + '.pdf', format='PDF', dpi=180)
-    
+        plt.savefig(infile + ".pdf", format="PDF", dpi=180)
+
     if len(data) > 1:
         # Plot the secondary display (amplitude)
         clean_data = data[1][~(np.isnan(data[0]) | np.isinf(data[0]))]
         vmin = np.nanpercentile(clean_data, 2)
         vmax = np.nanpercentile(clean_data, 98)
-        plot_raster(data[1], 'Greys_r', vmin, vmax, cross, title + " [Amplitude]", zoom, origin, bg, alpha)
+        plot_raster(
+            data[1],
+            "Greys_r",
+            vmin,
+            vmax,
+            cross,
+            title + " [Amplitude]",
+            zoom,
+            origin,
+            bg,
+            alpha,
+        )
         if do_save:
             print("Saving amplitude...")
-            plt.savefig(infile + '_amplitude.pdf', format='PDF', dpi=180)
+            plt.savefig(infile + "_amplitude.pdf", format="PDF", dpi=180)
 
     if arguments["--histo"]:
         # Plot all histograms
         plot_histo(data, title, crop, zoom)
         if do_save:
             print("Saving histo...")
-            plt.savefig(infile + '_histo.pdf', format='PDF', dpi=180)
+            plt.savefig(infile + "_histo.pdf", format="PDF", dpi=180)
 
     if zoom is not None:
         plot_zoom(data, crop, zoom, cpt, vmin, vmax, title, bg, alpha)
         if do_save:
             print("Saving zoom...")
-            plt.savefig(infile + '_zoom.pdf', format='PDF', dpi=180)
-    
+            plt.savefig(infile + "_zoom.pdf", format="PDF", dpi=180)
+
     if arguments["--stats"]:
         display_stats(data, zoom, crop)
 
@@ -399,13 +464,26 @@ def resolve_plot(data, arguments, crop, do_save, bg, alpha):
 def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin, bg, alpha):
     """Construct the raster display"""
     fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(1,1,1)
+    ax = fig.add_subplot(1, 1, 1)
     extent = None
     if origin is not None:
-        extent = (origin[0], origin[0] + raster.shape[1], origin[1] + raster.shape[0], origin[1])
+        extent = (
+            origin[0],
+            origin[0] + raster.shape[1],
+            origin[1] + raster.shape[0],
+            origin[1],
+        )
     if bg is not None:
-        bax = ax.imshow(bg, 'Greys_r', interpolation='nearest', extent=extent)
-    hax = ax.imshow(raster, cpt, interpolation='nearest', vmin=vmin, vmax=vmax, extent=extent, alpha=alpha)
+        bax = ax.imshow(bg, "Greys_r", interpolation="nearest", extent=extent)
+    hax = ax.imshow(
+        raster,
+        cpt,
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+        extent=extent,
+        alpha=alpha,
+    )
     ax.set_title(title)
     divider = make_axes_locatable(ax)
     c = divider.append_axes("right", size="5%", pad=0.05)
@@ -413,13 +491,17 @@ def plot_raster(raster, cpt, vmin, vmax, cross, title, zoom, origin, bg, alpha):
 
     if cross is not None:
         for i in range(len(cross[0])):
-            ax.scatter(cross[0][i], cross[1][i], marker='x', color='black', s=150.0)
-    
+            ax.scatter(cross[0][i], cross[1][i], marker="x", color="black", s=150.0)
+
     if zoom is not None:
-        ax.plot([zoom[0], zoom[0], zoom[1], zoom[1], zoom[0]], 
-                 [zoom[2], zoom[3], zoom[3], zoom[2], zoom[2]],
-                 "-", color='black', linewidth=1)
-    
+        ax.plot(
+            [zoom[0], zoom[0], zoom[1], zoom[1], zoom[0]],
+            [zoom[2], zoom[3], zoom[3], zoom[2], zoom[2]],
+            "-",
+            color="black",
+            linewidth=1,
+        )
+
     plt.tight_layout()
 
 
@@ -428,51 +510,85 @@ def plot_histo(data, title, crop, zoom):
     fig = plt.figure(figsize=(5, 5))
 
     histo_data = [data[0]]
-    histo_label = ['Main']
+    histo_label = ["Main"]
     if len(data) > 1:
         histo_data.append(data[1])
-        histo_label.append('Secondary')
+        histo_label.append("Secondary")
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
     if zoom is not None:
-        histo_data.append(data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]])
-        histo_label.append('Zoom')
-    
+        histo_data.append(
+            data[0][
+                zoom[2] - crop[2] : zoom[3] - crop[2],
+                zoom[0] - crop[0] : zoom[1] - crop[0],
+            ]
+        )
+        histo_label.append("Zoom")
+
     for d, l in zip(histo_data, histo_label):
         data_filtered = d[~(np.isnan(d) | np.isinf(d))].flatten()
         lower = np.nanpercentile(data_filtered, 1)
         upper = np.nanpercentile(data_filtered, 99)
-        hist_values, bin_edges = np.histogram(data_filtered, bins=50, range=(lower, upper))
+        hist_values, bin_edges = np.histogram(
+            data_filtered, bins=50, range=(lower, upper)
+        )
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
         plt.plot(bin_centers, hist_values / np.sum(hist_values), label=l)
     plt.title(title + " [Histogram]")
     plt.legend()
 
     # TODO add a box plot view ?
-    # min min2% 
+    # min min2%
 
 
 def plot_zoom(data, crop, zoom, cpt, vmin, vmax, title, bg, alpha):
     """Construct the zoom display"""
     if crop is None or len(crop) != 4:
         crop = [0, data[0].shape[0], 0, data[0].shape[1]]
-    zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
+    zdata = data[0][
+        zoom[2] - crop[2] : zoom[3] - crop[2], zoom[0] - crop[0] : zoom[1] - crop[0]
+    ]
     if bg is not None:
-        zbg = bg[zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
+        zbg = bg[
+            zoom[2] - crop[2] : zoom[3] - crop[2], zoom[0] - crop[0] : zoom[1] - crop[0]
+        ]
     else:
         zbg = None
-    plot_raster(zdata, cpt, vmin, vmax, None, title + " [ZOOM]", None, (zoom[0], zoom[2]), zbg, alpha)
+    plot_raster(
+        zdata,
+        cpt,
+        vmin,
+        vmax,
+        None,
+        title + " [ZOOM]",
+        None,
+        (zoom[0], zoom[2]),
+        zbg,
+        alpha,
+    )
 
 
-def plot_vario(data, dims, model='spherical', samples=10000, maxlag=400, n_lags=20):
+def plot_vario(data, dims, model="spherical", samples=10000, maxlag=400, n_lags=20):
     print(">  Variogram:")
     rows, cols = np.indices((data.shape[0], data.shape[1]))
-    data, rows, cols = data.flatten(), rows.flatten() * dims[1], cols.flatten() * dims[0]
+    data, rows, cols = (
+        data.flatten(),
+        rows.flatten() * dims[1],
+        cols.flatten() * dims[0],
+    )
     valid_data = ~np.isnan(data)
     data = data[valid_data]
     rows = rows[valid_data]
     cols = cols[valid_data]
-    v = Variogram(np.column_stack((cols , rows)), data, model=model, use_nugget=True, samples=samples, maxlag=maxlag, n_lags=n_lags)
+    v = Variogram(
+        np.column_stack((cols, rows)),
+        data,
+        model=model,
+        use_nugget=True,
+        samples=samples,
+        maxlag=maxlag,
+        n_lags=n_lags,
+    )
     v.plot()
     stats = v.parameters
     print("Range:\t{:.4}".format(stats[0]))
@@ -491,8 +607,8 @@ def display_raster_format(infile, driver, x, y, b, dtype):
 def display_stats(data, zoom, crop):
     from scipy.stats import describe
 
-    STATS = ['MIN', 'MAX', 'MEAN', 'VAR', 'MED', 'SKW', 'KRT', 'VAL']
-    
+    STATS = ["MIN", "MAX", "MEAN", "VAR", "MED", "SKW", "KRT", "VAL"]
+
     print(">  Stats:")
     # print("\tMin\tMax\tMean\tVariance\tMedian\tSkewness\tKurtosis\tValid", end='\n\n')
     # print("Main:")
@@ -500,9 +616,19 @@ def display_stats(data, zoom, crop):
     med = np.nanmedian(data[0])
     nb_values = data[0].shape[0] * data[0].shape[1]
     nb_nans = np.count_nonzero(np.isnan(data[0]))
-    region = ['MAIN']
-    stats = [['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
-              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)]]
+    region = ["MAIN"]
+    stats = [
+        [
+            "{:.4}".format(desc[1][0]),
+            "{:.4}".format(desc[1][1]),
+            "{:.4}".format(desc[2]),
+            "{:.4}".format(desc[3]),
+            "{:.4}".format(med),
+            "{:.4}".format(desc[4]),
+            "{:.4}".format(desc[5]),
+            "{:.3}%".format((1 - nb_nans / nb_values) * 100),
+        ]
+    ]
     # stats = [[desc[1][0], desc[1][1], desc[2], desc[3], med, desc[4], desc[5], (1 - nb_nans/nb_values) * 100]]
     # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
 
@@ -512,32 +638,54 @@ def display_stats(data, zoom, crop):
         med = np.nanmedian(data[1])
         nb_values = data[1].shape[0] * data[1].shape[1]
         nb_nans = np.count_nonzero(np.isnan(data[1]))
-        region.append('SECOND')
-        stats.append(['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
-              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)])
+        region.append("SECOND")
+        stats.append(
+            [
+                "{:.4}".format(desc[1][0]),
+                "{:.4}".format(desc[1][1]),
+                "{:.4}".format(desc[2]),
+                "{:.4}".format(desc[3]),
+                "{:.4}".format(med),
+                "{:.4}".format(desc[4]),
+                "{:.4}".format(desc[5]),
+                "{:.3}%".format((1 - nb_nans / nb_values) * 100),
+            ]
+        )
         # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
-    
+
     if zoom is not None:
         if crop is None or len(crop) != 4:
             crop = [0, data[0].shape[0], 0, data[0].shape[1]]
         # print("Zoom: ")
-        zdata = data[0][zoom[2] - crop[2]:zoom[3] - crop[2], zoom[0] - crop[0]:zoom[1] - crop[0]]
+        zdata = data[0][
+            zoom[2] - crop[2] : zoom[3] - crop[2], zoom[0] - crop[0] : zoom[1] - crop[0]
+        ]
         desc = describe(zdata, axis=None, nan_policy="omit")
         med = np.nanmedian(zdata)
         nb_values = zdata.shape[0] * zdata.shape[1]
         nb_nans = np.count_nonzero(np.isnan(zdata))
-        region.append('ZOOM')
-        stats.append(['{:.4}'.format(desc[1][0]), '{:.4}'.format(desc[1][1]), '{:.4}'.format(desc[2]), '{:.4}'.format(desc[3]), 
-              '{:.4}'.format(med), '{:.4}'.format(desc[4]), '{:.4}'.format(desc[5]), '{:.3}%'.format((1 - nb_nans/nb_values) * 100)])
+        region.append("ZOOM")
+        stats.append(
+            [
+                "{:.4}".format(desc[1][0]),
+                "{:.4}".format(desc[1][1]),
+                "{:.4}".format(desc[2]),
+                "{:.4}".format(desc[3]),
+                "{:.4}".format(med),
+                "{:.4}".format(desc[4]),
+                "{:.4}".format(desc[5]),
+                "{:.3}%".format((1 - nb_nans / nb_values) * 100),
+            ]
+        )
         # print(f"\t{desc[1][0]}\t{desc[1][1]}\t{desc[2]}\t{desc[3]}\t{med}\t{desc[4]}\t{desc[5]}\t{1 - nb_nans/nb_values}", end='\n\n')
-    
-    print('\t' + '\t\t'.join(region))
+
+    print("\t" + "\t\t".join(region))
     for i, s in enumerate(STATS):
-        print(s + '\t', end='')
+        print(s + "\t", end="")
         for r in range(len(region)):
-            print(stats[r][i], end='\t\t')
+            print(stats[r][i], end="\t\t")
         print()
-    
+
 
 if __name__ == "__main__":
     arguments = docopt.docopt(__doc__)
@@ -554,29 +702,29 @@ if __name__ == "__main__":
     crop = arguments["--crop"]
     if crop is not None:
         crop = [int(k) for k in crop.split(",")]
-    
+
     roicube = False
 
     if arguments["--dim"] is not None:
-        file_format = 'REAL4'
-        param_file = [int(d) for d in arguments["--dim"].split(',', 3)]
+        file_format = "REAL4"
+        param_file = [int(d) for d in arguments["--dim"].split(",", 3)]
         if len(param_file) == 2:
             param_file.append(1)
     elif arguments["--gdal"]:
-        file_format = 'GDAL'
+        file_format = "GDAL"
         param_file = None
     elif arguments["--lectfile"] is not None:
-        file_format = 'REAL4'
+        file_format = "REAL4"
         param_file = arguments["--lectfile"]
     elif arguments["--lectcube"] is not None:
-        file_format = 'REAL4'
+        file_format = "REAL4"
         param_file = arguments["--lectcube"]
         roicube = True
     elif arguments["--parfile"] is not None:
-        file_format = 'GAMMA'
+        file_format = "GAMMA"
         param_file = arguments["--parfile"]
     elif arguments["--amfile"] is not None:
-        file_format = 'AMSTER'
+        file_format = "AMSTER"
         param_file = arguments["--amfile"]
     else:
         file_format = None
@@ -591,24 +739,30 @@ if __name__ == "__main__":
 
     band = arg2value(arguments["--band"], int, 1)
     supp_ndv = arg2value(arguments["--ndv"], float)
-    
-    if file_format == 'REAL4':
-        data, driver, x, y, b, dtype = open_band_real4(infile, band, param_file, crop, cube=roicube)
-    elif file_format == 'GDAL' or (file_format == 'ROIPAC' and arguments["--band"] is not None):
-        data, driver, x, y, b, dtype = open_band_gdal(infile, band, crop)
-    elif file_format == 'ROIPAC':
+    decimate = arg2value(arguments["--decimate"], float, 1)
+    if decimate < 1:
+        raise ValueError("decimate must be more than 1, but got {}".format(decimate))
+
+    if file_format == "REAL4":
+        data, driver, x, y, b, dtype = open_band_real4(
+            infile, band, param_file, crop, cube=roicube, decimate=decimate
+        )
+    elif file_format == "GDAL" or (
+        file_format == "ROIPAC" and arguments["--band"] is not None
+    ):
+        data, driver, x, y, b, dtype = open_band_gdal(infile, band, crop, decimate=decimate)
+    elif file_format == "ROIPAC":
         data, driver, x, y, b, dtype = open_band_roipac(infile, crop)
-    elif file_format == 'AMSTER':
-        data, driver, x, y, b, dtype = open_band_amster(infile, param_file, crop)
-    elif file_format == 'GAMMA':
+    elif file_format == "AMSTER":
+        data, driver, x, y, b, dtype = open_band_amster(infile, param_file, crop, decimate=decimate)
+    elif file_format == "GAMMA":
         data, driver, x, y, b, dtype = open_band_gamma(infile, param_file, crop)
 
     if data[0].shape[0] * data[0].shape[1] > 30e6:
-        print("The raster contain more than 30 MP. Consider restrain the crop or using an overview instead:")
-        print("gdaladdo -ro {} {}".format(
-            infile,
-            4
-        ))
+        print(
+            "The raster contain more than 30 MP. Consider restrain the crop or using an overview instead:"
+        )
+        print("gdaladdo -ro {} {}".format(infile, 4))
         print("rplot {}".format(infile + ".ovr"))
         print()
 
@@ -625,19 +779,23 @@ if __name__ == "__main__":
         try:
             bg = open_band_gdal(bg, 1, crop)[0][0]
         except:
-            raise ValueError('Background file is not valid: {}'.format(bg))
+            raise ValueError("Background file is not valid: {}".format(bg))
     else:
         alpha = 1
 
     rad2mm = arg2value(arguments["--rad2mm"], float)
     wrap = arg2value(arguments["--wrap"], float)
 
-    data[0] = correct_values_phase(data[0], ext, rad2mm, wrap, supp_ndv, arguments["--phase"] or arguments["--amp"])
+    data[0] = correct_values_phase(
+        data[0], ext, rad2mm, wrap, supp_ndv, arguments["--phase"] or arguments["--amp"]
+    )
     if len(data) > 1:
-        data[1] = correct_values_amp(data[1], ext, arguments["--phase"] or arguments["--amp"])
+        data[1] = correct_values_amp(
+            data[1], ext, arguments["--phase"] or arguments["--amp"]
+        )
 
     do_save = arguments["--save"]
-    
+
     resolve_plot(data, arguments, crop, do_save, bg, alpha)
 
     if arguments["--vario"]:
@@ -645,9 +803,10 @@ if __name__ == "__main__":
         dlag = arg2value(arguments["--dlag"], conversion=int, default=500)
         nlag = arg2value(arguments["--nlag"], conversion=int, default=20)
         model = arg2value(arguments["--model"], default="spherical")
-        res = arg2value(arguments["--res"], conversion=lambda x: x.split(',')[:2], default=[1, 1])
-        plot_vario(data[0], [float(res[0]), float(res[1])], model, samples ,dlag, nlag)
+        res = arg2value(
+            arguments["--res"], conversion=lambda x: x.split(",")[:2], default=[1, 1]
+        )
+        plot_vario(data[0], [float(res[0]), float(res[1])], model, samples, dlag, nlag)
 
     if not arguments["--no-plot"]:
         plt.show()
-    
