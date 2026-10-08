@@ -1,0 +1,22 @@
+[project]
+name = "asp-sar"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cmcrameri>=1.9",
+    "docopt>=0.6.2",
+    "gdal==3.11",
+    "matplotlib>=3.11.0",
+    "numpy>=2.5.1",
+    "scipy>=1.18.0",
+]
+
+[dependency-groups]
+dev = [
+    "zensical>=0.0.59",
+    "mkdocstrings-python>=2.0.8",
+    "griffe-inherited-docstrings>=1.1.3",
+]
+
